@@ -4,6 +4,7 @@ from pathlib import Path
 
 #=====================================#
 # VARIAVEIS GLOBAIS
+# (CONFIGURAÇÕES E TEXTOS FIXOS)
 #=====================================#
 
 INDICADOR_FINAL = "Digite FIM para terminar"
@@ -14,84 +15,135 @@ ESPACO_MARKDOWN = "=" * 15
 ARQUIVO_EXISTENTE = "Arquivo de configuração já existe.\nDeseja criar outro arquivo? SIM/NAO> "
 PATH_ARQUIVO_JSON = "turnos.json"
 
+
 #=====================================#
 # FUNÇÕES PRINCIPAIS
-# FUNCAO_PRINCIPAL() AGE COMO INSTALADOR
-# PRIMEIRO_USO() VERIFICA SE JÁ NÃO ESTÁ
-# INSTALADO
-# SHELL() É UMA FUNÇÃO PRA VERIFICAR SE
-# O ARQUIVO .json ESTÁ SALVO MANUALMENTE
+#
+# FUNCAO_PRINCIPAL() -> CRIA E SALVA TURNOS
+# PRIMEIRO_USO() -> VERIFICA SE O JSON JÁ EXISTE
+# shell() -> EXECUTA COMANDOS DO SISTEMA
+#
+# FLUXO:
+# PRIMEIRO_USO -> FUNCAO_PRINCIPAL -> SALVA JSON
+# SHELL -> TERMINAL SIMPLES DO USUÁRIO
 #=====================================#
 
-def FUNCAO_PRINCIPAL() -> None:
 
+def FUNCAO_PRINCIPAL() -> None:
+    # DICIONÁRIO PRINCIPAL ONDE OS TURNOS SÃO ARMAZENADOS EM MEMÓRIA
     TURNOS = {}
-    
+
     print(ESPACO_MARKDOWN)
     print(INDICADOR_FORMATO)
     print(EXEMPLO_FORMATO)
     print(INDICADOR_FINAL)
     print(ESPACO_MARKDOWN)
 
-    INPUT_NOVO_TURNO = bool(True)
-    while INPUT_NOVO_TURNO == bool(True):
+    #=====================================#
+    # LOOP PRINCIPAL DE CRIAÇÃO DE TURNOS
+    #=====================================#
 
+    INPUT_NOVO_TURNO = True
+
+    while INPUT_NOVO_TURNO is True:
+
+        # NOME DO TURNO (CHAVE DO DICIONÁRIO)
         TURNO_PRINCIPAL = input("Insira o nome do turno> ").upper()
         TURNOS[TURNO_PRINCIPAL] = []
 
-        INPUT_TURNOS = bool(True)
+        #=====================================#
+        # LOOP DE HORÁRIOS DO TURNO ATUAL
+        #=====================================#
 
-        while INPUT_TURNOS is bool(True):
+        INPUT_TURNOS = True
+
+        while INPUT_TURNOS is True:
             HORARIOS = input(f"Insira os horários do turno {TURNO_PRINCIPAL}> ").upper()
 
+            # CONDIÇÃO DE SAÍDA DO LOOP INTERNO
             if HORARIOS == "FIM":
                 INPUT_TURNOS = False
                 break
 
+            # ADICIONA HORÁRIO NA LISTA DO TURNO
             TURNOS[TURNO_PRINCIPAL].append(HORARIOS)
 
-        ADICIONAR_NOVO_TURNO = input(TURNO_ADICIONADO).upper()
-        if ADICIONAR_NOVO_TURNO != "SIM":
-            INPUT_NOVO_TURNO = bool(False)
+        #=====================================#
+        # DECISÃO DE CONTINUAR OU PARAR
+        #=====================================#
 
-        with open("turnos.json", "w", encoding="utf-8") as ARQUIVO: # EXPORTA PRA turnos.json
+        ADICIONAR_NOVO_TURNO = input(TURNO_ADICIONADO).upper()
+
+        if ADICIONAR_NOVO_TURNO != "SIM":
+            INPUT_NOVO_TURNO = False
+
+        #=====================================#
+        # SALVAMENTO DO JSON (A CADA ITERAÇÃO)
+        #=====================================#
+
+        with open(PATH_ARQUIVO_JSON, "w", encoding="utf-8") as ARQUIVO:
             json.dump(TURNOS, ARQUIVO, indent=4, ensure_ascii=False)
+
+    #=====================================#
+    # SAÍDA FINAL - EXIBE TURNOS CRIADOS
+    #=====================================#
 
     for NOME_TURNOS, HORARIOS in TURNOS.items():
         print(ESPACO_MARKDOWN, NOME_TURNOS, ESPACO_MARKDOWN)
 
         for HORARIO in HORARIOS:
-               print(HORARIO)
+            print(HORARIO)
+
 
 def shell() -> None:
+    # SHELL SIMPLES PARA EXECUTAR COMANDOS DO SISTEMA
     PROMPT_STR = "Shell> "
-    PROMPT_PROCEED = bool(True)
 
-    while PROMPT_PROCEED == bool(True):
+    PROMPT_PROCEED = True
 
-        PROMPT_INPUT = input(PROMPT_STR) # COMO É LINHA DE COMANDO,
-        if PROMPT_INPUT == str("EXIT"):  # NÃO POSSO COLOCAR .upper()
-            PROMPT_PROCEED = bool(True)
+    while PROMPT_PROCEED is True:
+
+        # INPUT DO USUÁRIO (COMANDO DO SISTEMA)
+        PROMPT_INPUT = input(PROMPT_STR)
+
+        # COMANDO DE SAÍDA DO SHELL
+        if PROMPT_INPUT == "EXIT":
+            PROMPT_PROCEED = False
             break
-        else:
-            os.system(PROMPT_INPUT)
+
+        # EXECUTA O COMANDO DIRETAMENTE NO SISTEMA
+        os.system(PROMPT_INPUT)
+
 
 def PRIMEIRO_USO() -> None:
 
-    NAO_RESPONDIDO = bool(True) # SÓ SERVE PARA SE A RESPOSTA
-                                # NÃO FOR A ESPERADA, REPETE ATÉ
-                                # QUE SEJA
+    # FLAG PARA CONTROLAR REPETIÇÃO CASO USUÁRIO NÃO RESPONDA CORRETAMENTE
+    NAO_RESPONDIDO = True
+
+    #=====================================#
+    # VERIFICA SE O ARQUIVO JÁ EXISTE
+    #=====================================#
+
     if Path(PATH_ARQUIVO_JSON).is_file() is True:
-        while NAO_RESPONDIDO is bool(True):
+
+        while NAO_RESPONDIDO is True:
+
             NEW_FILE = input(ARQUIVO_EXISTENTE).upper()
+
             if NEW_FILE == "SIM":
-                NAO_RESPONDIDO = bool(False)
+                NAO_RESPONDIDO = False
                 print("Ok")
                 FUNCAO_PRINCIPAL()
 
     else:
-            NAO_RESPONDIDO = bool(False)
-            FUNCAO_PRINCIPAL() # SE O ARQUIVO NÃO EXISTIR,         
-                               # PROCEDE NORMALMENTE
+        # SE NÃO EXISTIR ARQUIVO, EXECUTA NORMALMENTE
+        NAO_RESPONDIDO = False
+        FUNCAO_PRINCIPAL()
+
+
+#=====================================#
+# INICIALIZAÇÃO DO PROGRAMA
+#=====================================#
+
 PRIMEIRO_USO()
 shell()
