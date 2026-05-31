@@ -95,7 +95,7 @@ def FUNCAO_PRINCIPAL() -> None:
             print(HORARIO)
 
 
-def shell() -> None:
+def SHELL() -> None:
     # SHELL SIMPLES PARA EXECUTAR COMANDOS DO SISTEMA
     PROMPT_STR = "Shell> "
 
@@ -146,4 +146,4 @@ def PRIMEIRO_USO() -> None:
 #=====================================#
 
 PRIMEIRO_USO()
-shell()
+SHELL()
