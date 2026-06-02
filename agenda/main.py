@@ -5,23 +5,33 @@ import getpass
 from pathlib import Path
 
 #=====================================#
-# CONSTANTES GLOBAIS (DIALOGO)
+# VARIAVEIS GLOBAIS
 #=====================================#
-INDICADOR_FINAL = "Digite FIM para terminar"
-INDICADOR_FORMATO = "Formato = HH:MM"
-EXEMPLO_FORMATO = "Exemplo: 09:10, 15:00"
-TURNO_ADICIONADO = "Turno adicionado.\nDeseja criar outro turno: SIM/NAO> "
-ESPACO_MARKDOWN = "=" * 15
-ARQUIVO_EXISTENTE = "Arquivo de configuração já existe.\nDeseja criar outro arquivo? SIM/NAO> "
-PATH_ARQUIVO_JSON = "turnos.json"
+ESPACO_MARKDOWN       = "=" * 36
+INDICADOR_FORMATO     = "  CADASTRO DE TURNOS E HORÁRIOS"
+EXEMPLO_FORMATO       = "  Formato obrigatório: HH:MM  (hora : minuto)"
+EXEMPLO_HORARIOS      = "  Exemplos válidos:  09:10  |  15:00  |  23:45"
+INDICADOR_FINAL       = "  Quando terminar de adicionar horários, digite FIM"
+PROMPT_NOME_TURNO     = "  Nome do turno (ex: MANHÃ, TARDE, NOITE)> "
+TURNO_ADICIONADO      = "\n  Turno salvo! Deseja cadastrar mais um turno? SIM/NAO> "
+RESUMO_TURNOS         = "\n  RESUMO DOS TURNOS CADASTRADOS:"
+ARQUIVO_EXISTENTE     = (
+    "Já existe uma configuração salva.\n"
+    "Deseja apagá-la e começar do zero? SIM/NAO> "
+)
+PATH_ARQUIVO_JSON     = "turnos.json"
 #=====================================#
-# CONSTANTES DE SENHA (DIALOGO)
+# VARIAVEIS DE SENHA
 #=====================================#
-PROMPT_SENHA = "Insira a senha> "
-PROMPT_CONFIRMAR_SENHA = "Confirme a senha> "
-SENHA_NAO_CONFERE = "Senhas não conferem. Tente novamente."
-SENHA_SALVA_MSG = "Senha salva com sucesso."
-ITERACOES_HASH = 100_000                       # DIFICULTA ATAQUES DE FORÇA BRUTA
+SENHA_CABECALHO       = "  CONFIGURAÇÃO DE SENHA"
+SENHA_INSTRUCAO       = "  Crie uma senha para proteger o acesso a esta configuração."
+SENHA_DICA            = "  Dica: misture letras maiúsculas, minúsculas, números e símbolos."
+SENHA_AVISO_TELA      = "  O que você digitar não aparecerá na tela — isso é normal e esperado."
+PROMPT_SENHA          = "  Nova senha> "
+PROMPT_CONFIRMAR_SENHA = "  Confirme a senha> "
+SENHA_NAO_CONFERE     = "\n  As senhas não são iguais. Tente novamente.\n"
+SENHA_SALVA_MSG       = "  Senha configurada e salva com sucesso!"
+ITERACOES_HASH        = 100_000                # DIFICULTA ATAQUES DE FORÇA BRUTA
 #=====================================#
 # FUNÇÕES PRINCIPAIS
 # FUNCAO_PRINCIPAL() AGE COMO INSTALADOR
@@ -37,16 +47,18 @@ def FUNCAO_PRINCIPAL() -> None:
     
     print(ESPACO_MARKDOWN)
     print(INDICADOR_FORMATO)
+    print(ESPACO_MARKDOWN)
     print(EXEMPLO_FORMATO)
+    print(EXEMPLO_HORARIOS)
     print(INDICADOR_FINAL)
     print(ESPACO_MARKDOWN)
     INPUT_NOVO_TURNO = bool(True)
     while INPUT_NOVO_TURNO == bool(True):
-        TURNO_PRINCIPAL = input("Insira o nome do turno> ").upper()
+        TURNO_PRINCIPAL = input(PROMPT_NOME_TURNO).upper()
         TURNOS[TURNO_PRINCIPAL] = []
         INPUT_TURNOS = bool(True)
         while INPUT_TURNOS is bool(True):
-            HORARIOS = input(f"Insira os horários do turno {TURNO_PRINCIPAL}> ").upper()
+            HORARIOS = input(f"  Horário para {TURNO_PRINCIPAL} (ou FIM para encerrar)> ").upper()
             if HORARIOS == "FIM":
                 INPUT_TURNOS = False
                 break
@@ -56,6 +68,7 @@ def FUNCAO_PRINCIPAL() -> None:
             INPUT_NOVO_TURNO = bool(False)
         with open("turnos.json", "w", encoding="utf-8") as ARQUIVO: # EXPORTA PRA turnos.json
             json.dump(TURNOS, ARQUIVO, indent=4, ensure_ascii=False)
+    print(RESUMO_TURNOS)
     for NOME_TURNOS, HORARIOS in TURNOS.items():
         print(ESPACO_MARKDOWN, NOME_TURNOS, ESPACO_MARKDOWN)
         for HORARIO in HORARIOS:
@@ -69,6 +82,13 @@ def SOLICITAR_SENHA() -> None:
     # ALGORITMO: PBKDF2 + SHA-256
     # SALT ALEATÓRIO GERADO A CADA CHAMADA
     #=====================================#
+    print(ESPACO_MARKDOWN)
+    print(SENHA_CABECALHO)
+    print(ESPACO_MARKDOWN)
+    print(SENHA_INSTRUCAO)
+    print(SENHA_DICA)
+    print(SENHA_AVISO_TELA)
+    print(ESPACO_MARKDOWN)
     SENHAS_CONFEREM = bool(False)
     while SENHAS_CONFEREM == bool(False):
         SENHA_DIGITADA = getpass.getpass(PROMPT_SENHA)
@@ -120,7 +140,7 @@ def PRIMEIRO_USO() -> None:
             NEW_FILE = input(ARQUIVO_EXISTENTE).upper()
             if NEW_FILE == "SIM":
                 NAO_RESPONDIDO = bool(False)
-                print("Ok")
+                print("  Ok, iniciando nova configuração...\n")
                 FUNCAO_PRINCIPAL()
                 SOLICITAR_SENHA()  # ADICIONA SENHA AO JSON DOS TURNOS
     else:
