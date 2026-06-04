@@ -3,9 +3,19 @@ import json
 import hashlib
 import hmac
 
-ARQUIVO_SENHA = "senha.json"
+ARQUIVO_SENHA = "senha.py"
 ITERACOES = 100_000
 
+def abrir_painel():
+    janela = ctk.CTkToplevel(app)
+    janela.title("Painel administrativo")
+    janela.geometry('600x400')
+
+    texto = ctk.CTkLabel(
+        janela,
+        text='Bem vindo às configurações do sistema PSEI'
+    )
+    texto.pack(pady=20)
 
 def verificar_senha():
     senha_digitada = entrada.get()
@@ -33,6 +43,8 @@ def verificar_senha():
                 text="Senha correta",
                 text_color="green"
             )
+            app.withdraw()
+            abrir_painel()
 
         else:
             resultado.configure(
