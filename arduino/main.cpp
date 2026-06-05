@@ -1,3 +1,25 @@
+// * * * * * * * * * * * * * * * * * * * * * * * * *
+//              DESENVOLVEDORES
+// * * * * * * * * * * * * * * * * * * * * * * * * *
+//
+// Aquiles Frazão => Hardware (Arduino / GPIO / RTC / Atuadores)
+// Gabriel Moura  => Regras de Execução / Lógica do Sistema / Backend
+//
+// Turma: 2ºA - Redes
+//
+// * * * * * * * * * * * * * * * * * * * * * * * * *
+//
+// DESCRIÇÃO DOS CÓDIGOS
+//
+// C++ / Arduino:
+// Versão final do sistema em baixo nível, executada diretamente no Arduino Uno.
+// Aqui ocorre a comunicação direta com hardware físico (RTC DS3231, relé, botões e LEDs),
+// utilizando manipulação de pinos digitais e controle de tempo via millis().
+// Esta camada substitui a abstração do Python por controle direto da placa,
+// garantindo maior desempenho e resposta em tempo real.
+//
+// * * * * * * * * * * * * * * * * * * * * * * * * *
+
 #include <Wire.h>
 #include <RTClib.h>
 
