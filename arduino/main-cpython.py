@@ -1,3 +1,25 @@
+# * * * * * * * * * * * * * * * * * * * * * * * * * 
+#              DESENVOLVEDORES
+# * * * * * * * * * * * * * * * * * * * * * * * * * 
+#
+# Aquiles Frazão => Hardware
+# Gabriel Moura  => Bytecode
+#
+# Turma: 2ºA - Redes
+#
+# * * * * * * * * * * * * * * * * * * * * * * * * * 
+#
+# DESCRIÇÃO DOS CÓDIGOS
+#
+# Este arquivo representa a versão em CPython do sistema, gerada a partir do código Python original.
+# Aqui ocorre a adaptação para execução na máquina virtual do Python (bytecode + runtime),
+# incluindo abstração de hardware via GPIO e RTC simulados ou reais.
+# Pequenas otimizações e ajustes de baixo nível foram aplicados manualmente no fluxo,
+# mantendo compatibilidade com execução em Raspberry Pi ou ambiente simulado.
+# Essa camada serve como ponte entre a linguagem de alto nível (Python)
+# e a implementação mais próxima do hardware.
+# * * * * * * * * * * * * * * * * * * * * * * * * * 
+
 import time
 from dataclasses import dataclass
 
