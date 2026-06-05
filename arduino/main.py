@@ -1,13 +1,13 @@
-# * * * * * * * * * * * * * * * * * * * *
+# * * * * * * * * * * * * * * * * * * * * * * * * * 
 #              DESENVOLVEDORES
-# * * * * * * * * * * * * * * * * * * * *
+# * * * * * * * * * * * * * * * * * * * * * * * * * 
 #
 # Aquiles Frazão => Hardware
 # Gabriel Moura  => Regras e Exceções BACKEND
 #
 # Turma: 2ºA - Redes
 #
-# * * * * * * * * * * * * * * * * * * * *
+# * * * * * * * * * * * * * * * * * * * * * * * * * 
 #
 # DESCRIÇÃO DOS CÓDIGOS
 #
@@ -15,6 +15,7 @@
 # Este código foi escrito em Python por ser uma linguagem de alto nível,
 # mais simples e produtiva para desenvolvimento.
 # Ele será processado pelo CPython, que o transforma em bytecode para execução.
+# * * * * * * * * * * * * * * * * * * * * * * * * * 
 
 import time
 from dataclasses import dataclass
