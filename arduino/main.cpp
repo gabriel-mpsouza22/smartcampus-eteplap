@@ -25,111 +25,100 @@
 
 RTC_DS3231 RTC;
 
-const byte PIN_RELE = 8;
-const byte PIN_MODO = 2;
-const byte PIN_MANUAL = 3;
+constexpr byte PIN_RELE = 8;
+constexpr byte PIN_MODO = 2;
+constexpr byte PIN_MANUAL = 3;
 
-const unsigned long TEMPO_SIRENE = 10000;
+constexpr unsigned long TEMPO_SIRENE = 10000UL;
+constexpr unsigned long DEBOUNCE = 300UL;
 
 struct HORARIO {
-  byte HORA;
-  byte MINUTO;
+  byte hora;
+  byte minuto;
 };
 
-HORARIO HORARIOS_INTEGRAL[] = {
-  {7, 30},
-  {8, 20},
-  {9, 10},
-  {9, 30},
-  {10, 20},
-  {11, 10},
-  {12, 0},
-  {13, 20},
-  {14, 10},
-  {15, 0},
-  {16, 10},
-  {17, 0}
+const HORARIO HORARIOS_INTEGRAL[] PROGMEM = {
+  {7,30},{8,20},{9,10},{9,30},
+  {10,20},{11,10},{12,0},{13,20},
+  {14,10},{15,0},{16,10},{17,0}
 };
 
-const int TOTAL_INTEGRAL =
+const HORARIO HORARIOS_PROVA[] PROGMEM = {
+  {7,0},{8,0},{9,0},
+  {10,0},{11,0},{12,0}
+};
+
+constexpr byte TOTAL_INTEGRAL =
 sizeof(HORARIOS_INTEGRAL) / sizeof(HORARIOS_INTEGRAL[0]);
 
-HORARIO HORARIOS_PROVA[] = {
-  {7, 0},
-  {8, 0},
-  {9, 0},
-  {10, 0},
-  {11, 0},
-  {12, 0}
-};
-
-const int TOTAL_PROVA =
+constexpr byte TOTAL_PROVA =
 sizeof(HORARIOS_PROVA) / sizeof(HORARIOS_PROVA[0]);
 
-enum MODO {
+enum MODO : byte {
   INTEGRAL,
   PROVA
 };
 
-MODO MODO_ATUAL = INTEGRAL;
+MODO modoAtual = INTEGRAL;
 
-bool SIRENE_LIGADA = false;
-unsigned long INICIO_SIRENE = 0;
+bool sireneLigada = false;
 
-int ULTIMO_MINUTO_TOCADO = -1;
+unsigned long inicioSirene = 0;
+unsigned long ultimoCliqueModo = 0;
+unsigned long ultimoCliqueManual = 0;
+unsigned long ultimaLeituraRTC = 0;
 
-unsigned long ULTIMO_CLIQUE_MODO = 0;
-unsigned long ULTIMO_CLIQUE_MANUAL = 0;
+int ultimoHorarioTocado = -1;
 
-void ligarSirene() {
+inline void ligarSirene() {
 
-  if (!SIRENE_LIGADA) {
+  if (sireneLigada)
+    return;
 
-    digitalWrite(PIN_RELE, HIGH);
+  digitalWrite(PIN_RELE, HIGH);
 
-    SIRENE_LIGADA = true;
-    INICIO_SIRENE = millis();
+  sireneLigada = true;
+  inicioSirene = millis();
 
-    Serial.println("SIRENE LIGADA");
-  }
+  Serial.println(F("SIRENE LIGADA"));
 }
 
-void atualizarSirene() {
+inline void atualizarSirene() {
 
-  if (SIRENE_LIGADA &&
-      millis() - INICIO_SIRENE >= TEMPO_SIRENE) {
+  if (!sireneLigada)
+    return;
+
+  if (millis() - inicioSirene >= TEMPO_SIRENE) {
 
     digitalWrite(PIN_RELE, LOW);
 
-    SIRENE_LIGADA = false;
+    sireneLigada = false;
 
-    Serial.println("SIRENE DESLIGADA");
+    Serial.println(F("SIRENE DESLIGADA"));
   }
 }
 
-bool horarioExiste(byte HORA, byte MINUTO) {
+bool horarioExiste(byte hora, byte minuto) {
 
-  if (MODO_ATUAL == INTEGRAL) {
+  const HORARIO* tabela;
+  byte total;
 
-    for (int INDICE = 0; INDICE < TOTAL_INTEGRAL; INDICE++) {
-
-      if (HORARIOS_INTEGRAL[INDICE].HORA == HORA &&
-          HORARIOS_INTEGRAL[INDICE].MINUTO == MINUTO) {
-
-        return true;
-      }
-    }
-
+  if (modoAtual == INTEGRAL) {
+    tabela = HORARIOS_INTEGRAL;
+    total = TOTAL_INTEGRAL;
   } else {
+    tabela = HORARIOS_PROVA;
+    total = TOTAL_PROVA;
+  }
 
-    for (int INDICE = 0; INDICE < TOTAL_PROVA; INDICE++) {
+  for (byte i = 0; i < total; i++) {
 
-      if (HORARIOS_PROVA[INDICE].HORA == HORA &&
-          HORARIOS_PROVA[INDICE].MINUTO == MINUTO) {
+    HORARIO h;
 
-        return true;
-      }
-    }
+    memcpy_P(&h, &tabela[i], sizeof(HORARIO));
+
+    if (h.hora == hora && h.minuto == minuto)
+      return true;
   }
 
   return false;
@@ -137,72 +126,81 @@ bool horarioExiste(byte HORA, byte MINUTO) {
 
 void verificarModo() {
 
-  if (digitalRead(PIN_MODO) == LOW) {
+  if (digitalRead(PIN_MODO) != LOW)
+    return;
 
-    if (millis() - ULTIMO_CLIQUE_MODO > 300) {
+  unsigned long agora = millis();
 
-      ULTIMO_CLIQUE_MODO = millis();
+  if (agora - ultimoCliqueModo < DEBOUNCE)
+    return;
 
-      if (MODO_ATUAL == INTEGRAL) {
+  ultimoCliqueModo = agora;
 
-        MODO_ATUAL = PROVA;
+  modoAtual = (modoAtual == INTEGRAL)
+              ? PROVA
+              : INTEGRAL;
 
-        Serial.println();
-        Serial.println("MODO ALTERADO -> DIA DE PROVA");
+  Serial.println();
 
-      } else {
-
-        MODO_ATUAL = INTEGRAL;
-
-        Serial.println();
-        Serial.println("MODO ALTERADO -> INTEGRAL");
-      }
-    }
-  }
+  if (modoAtual == PROVA)
+    Serial.println(F("MODO -> DIA DE PROVA"));
+  else
+    Serial.println(F("MODO -> INTEGRAL"));
 }
 
 void verificarManual() {
 
-  if (digitalRead(PIN_MANUAL) == LOW) {
+  if (digitalRead(PIN_MANUAL) != LOW)
+    return;
 
-    if (millis() - ULTIMO_CLIQUE_MANUAL > 300) {
+  unsigned long agora = millis();
 
-      ULTIMO_CLIQUE_MANUAL = millis();
+  if (agora - ultimoCliqueManual < DEBOUNCE)
+    return;
 
-      Serial.println();
-      Serial.println("ACIONAMENTO MANUAL");
+  ultimoCliqueManual = agora;
 
-      ligarSirene();
-    }
-  }
+  Serial.println();
+  Serial.println(F("ACIONAMENTO MANUAL"));
+
+  ligarSirene();
 }
 
 void verificarHorarios() {
 
-  DateTime AGORA = RTC.now();
+  unsigned long agoraMillis = millis();
 
-  byte HORA = AGORA.hour();
-  byte MINUTO = AGORA.minute();
+  if (agoraMillis - ultimaLeituraRTC < 1000)
+    return;
 
-  if (horarioExiste(HORA, MINUTO)) {
+  ultimaLeituraRTC = agoraMillis;
 
-    if (ULTIMO_MINUTO_TOCADO != MINUTO) {
+  DateTime agora = RTC.now();
 
-      ULTIMO_MINUTO_TOCADO = MINUTO;
+  byte hora = agora.hour();
+  byte minuto = agora.minute();
 
-      Serial.println();
-      Serial.print("TOQUE AUTOMATICO ");
-      Serial.print(HORA);
-      Serial.print(":");
+  int codigoMinuto = hora * 60 + minuto;
 
-      if (MINUTO < 10)
-        Serial.print("0");
+  if (!horarioExiste(hora, minuto))
+    return;
 
-      Serial.println(MINUTO);
+  if (codigoMinuto == ultimoHorarioTocado)
+    return;
 
-      ligarSirene();
-    }
-  }
+  ultimoHorarioTocado = codigoMinuto;
+
+  Serial.println();
+  Serial.print(F("TOQUE AUTOMATICO "));
+  Serial.print(hora);
+  Serial.print(':');
+
+  if (minuto < 10)
+    Serial.print('0');
+
+  Serial.println(minuto);
+
+  ligarSirene();
 }
 
 void setup() {
@@ -217,27 +215,22 @@ void setup() {
 
   if (!RTC.begin()) {
 
-    Serial.println("RTC DS3231 NAO ENCONTRADO");
+    Serial.println(F("RTC DS3231 NAO ENCONTRADO"));
 
     while (true);
   }
 
   Serial.println();
-  Serial.println("=================================");
-  Serial.println("SISTEMA DE SIRENE ESCOLAR");
-  Serial.println("Modo Inicial: INTEGRAL");
-  Serial.println("=================================");
+  Serial.println(F("================================="));
+  Serial.println(F("SISTEMA DE SIRENE ESCOLAR"));
+  Serial.println(F("MODO INICIAL: INTEGRAL"));
+  Serial.println(F("================================="));
 }
 
 void loop() {
 
   verificarModo();
-
   verificarManual();
-
   verificarHorarios();
-
   atualizarSirene();
-
-  delay(100);
 }
