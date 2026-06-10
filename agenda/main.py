@@ -44,6 +44,85 @@ ITERACOES_HASH        = 100_000                # DIFICULTA ATAQUES DE FORÇA BRU
 # SOLICITAR_SENHA() PEDE, CRIPTOGRAFA E
 # SALVA A SENHA NO ARQUIVO JSON
 #=====================================#
+
+#=====================================#
+# FUNÇÃO DE MANUTENÇÃO
+# CRIA UMA CÓPIA DE SEGURANÇA DO JSON
+# ANTES DE ALTERAÇÕES MANUAIS
+# NÃO É EXECUTADA NORMALMENTE
+#=====================================#
+def BACKUP_CONFIGURACAO() -> None:
+    if Path(PATH_ARQUIVO_JSON).is_file() is False:
+        print("  Nenhum arquivo encontrado para backup.")
+        return
+
+    try:
+        with open(PATH_ARQUIVO_JSON, "r", encoding="utf-8") as ARQUIVO:
+            DADOS_JSON = json.load(ARQUIVO)
+
+        NOME_BACKUP = "turnos_backup.json"
+
+        with open(NOME_BACKUP, "w", encoding="utf-8") as ARQUIVO:
+            json.dump(
+                DADOS_JSON,
+                ARQUIVO,
+                indent=4,
+                ensure_ascii=False
+            )
+
+        print(f"  Backup criado com sucesso: {NOME_BACKUP}")
+
+    except json.JSONDecodeError:
+        print("  ERRO: não foi possível ler o JSON.")
+
+    except Exception as ERRO:
+        print(f"  ERRO INESPERADO: {ERRO}")
+
+#=====================================#
+# FUNÇÃO DE MANUTENÇÃO
+# NÃO É CHAMADA NORMALMENTE
+# SERVE PARA VERIFICAR SE O ARQUIVO
+# JSON ESTÁ ÍNTEGRO E POSSUI OS
+# CAMPOS ESPERADOS
+#=====================================#
+def VERIFICAR_INTEGRIDADE_JSON() -> None:
+    if Path(PATH_ARQUIVO_JSON).is_file() is False:
+        print("  Arquivo JSON não encontrado.")
+        return
+
+    try:
+        with open(PATH_ARQUIVO_JSON, "r", encoding="utf-8") as ARQUIVO:
+            DADOS_JSON = json.load(ARQUIVO)
+
+        print(ESPACO_MARKDOWN)
+        print("  VERIFICAÇÃO DE INTEGRIDADE")
+        print(ESPACO_MARKDOWN)
+
+        if "SALT" not in DADOS_JSON:
+            print("  ERRO: campo SALT não encontrado.")
+        else:
+            print("  SALT encontrado.")
+
+        if "SENHA" not in DADOS_JSON:
+            print("  ERRO: campo SENHA não encontrado.")
+        else:
+            print("  SENHA encontrada.")
+
+        for CHAVE, VALOR in DADOS_JSON.items():
+            if CHAVE not in ("SALT", "SENHA"):
+                if type(VALOR) is list:
+                    print(f"  Turno válido encontrado: {CHAVE}")
+                else:
+                    print(f"  AVISO: {CHAVE} não possui formato de lista.")
+
+        print("  Verificação concluída.")
+
+    except json.JSONDecodeError:
+        print("  ERRO: JSON corrompido ou inválido.")
+
+    except Exception as ERRO:
+        print(f"  ERRO INESPERADO: {ERRO}")
+        
 def VERIFICAR_INTEGRIDADE_JSON() -> None:
     if Path(PATH_ARQUIVO_JSON).is_file() is False:
         print("  Arquivo JSON não encontrado.")
