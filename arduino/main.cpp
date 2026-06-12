@@ -8,7 +8,15 @@
 // Turma: 2ºA - Redes
 //
 // * * * * * * * * * * * * * * * * * * * * * * * * *
-//
+// - Arduino Uno (controlador principal)
+// - RTC DS3231 (relógio de tempo real)
+// - Módulo relé (acionamento de carga externa)
+// - LED Sirene (vermelho)
+// - LED Integral (verde)
+// - LED Prova (amarelo)
+// - Botão de modo
+// - Botão manual
+// * * * * * * * * * * * * * * * * * * * * * * * * *
 // DESCRIÇÃO DOS CÓDIGOS
 //
 // C++ / Arduino:
