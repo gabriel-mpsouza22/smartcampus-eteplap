@@ -4,8 +4,6 @@ import hashlib
 import getpass
 from pathlib import Path
 
-# Tenho que reformular tudo isso...
-
 #=====================================#
 # VARIAVEIS GLOBAIS
 #=====================================#
