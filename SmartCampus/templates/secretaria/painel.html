@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+{% block titulo %}Secretaria{% endblock %}
+{% block topbar_titulo %}🏢 Painel da Secretaria{% endblock %}
+
+{% block estilos %}
+<style>
+.sp-layout {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+
+.painel-novo {
+  background: var(--card);
+  border: 2px solid var(--azul-claro);
+  border-radius: var(--raio-lg);
+  padding: 20px;
+}
+.painel-novo-titulo {
+  font-family: var(--fonte-display);
+  font-weight: 800;
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+.painel-novo-sub { font-size: .78rem; color: var(--texto-mudo); margin-bottom: 16px; }
+
+
+.chat-box {
+  background: var(--card);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-lg);
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  height: 360px;
+  overflow: hidden;
+}
+.chat-cabecalho {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--borda);
+  font-weight: 700;
+  font-size: .85rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--fundo);
+}
+.chat-status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--verde);
+}
+.chat-mensagens {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.msg {
+  max-width: 78%;
+  padding: 7px 12px;
+  border-radius: 12px;
+  font-size: .82rem;
+  line-height: 1.4;
+}
+.msg-minha { align-self: flex-end; background: var(--azul-medio); color: #fff; border-bottom-right-radius: 3px; }
+.msg-outro { align-self: flex-start; background: var(--fundo); color: var(--texto); border-bottom-left-radius: 3px; }
+.msg-remetente { font-size: .68rem; opacity: .75; font-weight: 700; margin-bottom: 2px; }
+.msg-hora { font-size: .62rem; opacity: .6; margin-top: 3px; }
+
+.chat-input-linha {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--borda);
+}
+.chat-input-linha input {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1px solid var(--borda-forte);
+  border-radius: 999px;
+  font-size: .84rem;
+  outline: none;
+}
+.chat-input-linha input:focus { border-color: var(--azul-medio); }
+.chat-input-linha button {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: var(--azul-medio);
+  color: #fff;
+  cursor: pointer;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+.chat-input-linha button:hover { background: #1D4ED8; }
+
+
+.agenda-linha {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap:wrap;
+}
+.lista-compromissos { display:flex; flex-direction:column; gap:8px; }
+.compromisso-card {
+  background: var(--card);
+  border: 1px solid var(--borda);
+  border-left: 4px solid var(--azul-medio);
+  border-radius: var(--raio);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.compromisso-hora {
+  font-family: var(--fonte-mono);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--azul-medio);
+  min-width: 52px;
+}
+.compromisso-info { flex: 1; }
+.compromisso-resp { font-weight: 700; font-size: .88rem; }
+.compromisso-motivo { font-size: .78rem; color: var(--texto-secundario); }
+.estado-vazio { text-align:center; padding:36px; color:var(--texto-mudo); }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+<div class="sp-layout">
+
+  <div>
+    <div class="painel-novo">
+      <div class="painel-novo-titulo">+ Novo compromisso</div>
+      <div class="painel-novo-sub">Registre um atendimento e a portaria verá automaticamente.</div>
+
+      <form onsubmit="event.preventDefault(); criarCompromisso();">
+        <div class="campo">
+          <label>Data</label>
+          <input type="date" id="nc-data" value="{{ hoje }}">
+        </div>
+        <div class="campo">
+          <label>Horário</label>
+          <input type="time" id="nc-hora">
+        </div>
+        <div class="campo">
+          <label>Nome do visitante/responsável</label>
+          <input type="text" id="nc-responsavel" placeholder="Ex: Maria Souza (mãe do aluno João)">
+        </div>
+        <div class="campo">
+          <label>Motivo</label>
+          <input type="text" id="nc-motivo" placeholder="Ex: Reunião pedagógica">
+        </div>
+        <button type="submit" class="btn btn-primario w-full" id="btn-novo-compromisso">
+          Agendar
+        </button>
+      </form>
+    </div>
+
+    <div class="chat-box">
+      <div class="chat-cabecalho"><span class="chat-status-dot"></span> Chat com a Portaria</div>
+      <div class="chat-mensagens" id="chat-mensagens"></div>
+      <div class="chat-input-linha">
+        <input type="text" id="chat-input" placeholder="Digite uma mensagem…" maxlength="500"
+               onkeydown="if(event.key==='Enter') enviarMensagem();">
+        <button onclick="enviarMensagem()" title="Enviar">➤</button>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="agenda-linha">
+      <input type="date" class="seletor-data" id="ag-data" value="{{ hoje }}"
+             style="padding:7px 12px;border:1px solid var(--borda-forte);border-radius:6px;font-family:var(--fonte-mono);"
+             onchange="carregarAgenda()">
+      <span class="secao-titulo" style="font-size:1rem;margin:0;" id="ag-titulo">Agenda de hoje</span>
+    </div>
+    <div class="lista-compromissos" id="lista-compromissos">
+      <div class="estado-vazio">Carregando agenda…</div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let ultimoIdMsg = 0;
+
+document.addEventListener("DOMContentLoaded", () => {
+  carregarAgenda();
+  carregarChatInicial();
+  setInterval(pollChat, 4000);
+  setInterval(carregarAgenda, 30000);
+});
+
+
+async function carregarAgenda() {
+  const data = document.getElementById("ag-data").value;
+  const hoje = new Date().toISOString().slice(0,10);
+  document.getElementById("ag-titulo").textContent = data === hoje ? "Agenda de hoje" : "Agenda de " + formatarData(data);
+
+  const r = await api("get", `/api/compromissos?data=${data}`);
+  const lista = document.getElementById("lista-compromissos");
+  if (!r.ok) { lista.innerHTML = `<div class="estado-vazio">Erro ao carregar.</div>`; return; }
+  if (r.dados.length === 0) { lista.innerHTML = `<div class="estado-vazio">📭 Nenhum compromisso agendado.</div>`; return; }
+
+  lista.innerHTML = r.dados.map(c => `
+    <div class="compromisso-card">
+      <div class="compromisso-hora">${c.hora}</div>
+      <div class="compromisso-info">
+        <div class="compromisso-resp">${c.responsavel}</div>
+        <div class="compromisso-motivo">${c.motivo}</div>
+      </div>
+      <button class="btn btn-secundario btn-sm" onclick="cancelarCompromisso(${c.id})">Cancelar</button>
+    </div>`).join("");
+}
+
+async function criarCompromisso() {
+  const corpo = {
+    data: document.getElementById("nc-data").value,
+    hora: document.getElementById("nc-hora").value,
+    responsavel: document.getElementById("nc-responsavel").value.trim(),
+    motivo: document.getElementById("nc-motivo").value.trim(),
+  };
+  if (!corpo.data || !corpo.hora || !corpo.responsavel || !corpo.motivo) {
+    mostrarAlerta("Preencha todos os campos.", "aviso"); return;
+  }
+  mostrarSpinner("btn-novo-compromisso");
+  const r = await api("post", "/api/compromissos", corpo);
+  ocultarSpinner("btn-novo-compromisso");
+  if (r.ok) {
+    mostrarAlerta("Compromisso agendado!", "sucesso");
+    document.getElementById("nc-responsavel").value = "";
+    document.getElementById("nc-motivo").value = "";
+    document.getElementById("ag-data").value = corpo.data;
+    carregarAgenda();
+  } else {
+    mostrarAlerta(r.dados?.erro || "Erro ao agendar.", "erro");
+  }
+}
+
+async function cancelarCompromisso(id) {
+  if (!confirm("Cancelar este compromisso?")) return;
+  const r = await api("delete", `/api/compromissos/${id}`);
+  if (r.ok) { mostrarAlerta("Cancelado.", "aviso"); carregarAgenda(); }
+  else mostrarAlerta(r.dados?.erro || "Erro.", "erro");
+}
+
+
+async function carregarChatInicial() {
+  const r = await api("get", "/api/chat/mensagens");
+  if (!r.ok) return;
+  renderizarMensagens(r.dados, true);
+  if (r.dados.length) ultimoIdMsg = r.dados[r.dados.length-1].id;
+}
+
+async function pollChat() {
+  const r = await api("get", `/api/chat/mensagens?desde_id=${ultimoIdMsg}`);
+  if (!r.ok || r.dados.length === 0) return;
+  renderizarMensagens(r.dados, false);
+  ultimoIdMsg = r.dados[r.dados.length-1].id;
+}
+
+function renderizarMensagens(msgs, substituir) {
+  const box = document.getElementById("chat-mensagens");
+  const meuNome = "{{ usuario.nome }}";
+  const html = msgs.map(m => {
+    const minha = m.remetente === meuNome;
+    const hora = new Date(m.data_hora).toLocaleTimeString("pt-BR",{hour:'2-digit',minute:'2-digit'});
+    return `<div class="msg ${minha?'msg-minha':'msg-outro'}">
+      ${!minha ? `<div class="msg-remetente">${m.remetente}</div>` : ""}
+      ${m.texto}
+      <div class="msg-hora">${hora}</div>
+    </div>`;
+  }).join("");
+
+  box.innerHTML = substituir ? html : box.innerHTML + html;
+  box.scrollTop = box.scrollHeight;
+}
+
+async function enviarMensagem() {
+  const input = document.getElementById("chat-input");
+  const texto = input.value.trim();
+  if (!texto) return;
+  input.value = "";
+  const r = await api("post", "/api/chat/enviar", { texto });
+  if (r.ok) { await pollChat(); }
+  else mostrarAlerta(r.dados?.erro || "Erro ao enviar.", "erro");
+}
+
+function formatarData(iso) {
+  const [y,m,d] = iso.split("-"); return `${d}/${m}/${y}`;
+}
+</script>
+{% endblock %}

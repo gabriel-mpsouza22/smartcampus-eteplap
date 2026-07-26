@@ -1,0 +1,592 @@
+{% extends "base.html" %}
+{% block titulo %}Ocorrências{% endblock %}
+{% block topbar_titulo %}📋 Ocorrências{% endblock %}
+
+{% block estilos %}
+<style>
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px,1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio-lg);
+  padding: 16px 18px; display: flex; align-items: center; gap: 12px;
+}
+.stat-icone { width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0; }
+.stat-numero { font-family: var(--fonte-display); font-weight:800; font-size:1.4rem; line-height:1; color:var(--texto); }
+.stat-label { font-size:.72rem; color:var(--texto-mudo); font-weight:600; margin-top:2px; }
+
+
+.oc-layout { display:grid; grid-template-columns: 380px 1fr; gap:20px; align-items:start; }
+
+
+.painel-registro {
+  background: var(--card); border: 2px solid var(--vermelho-claro); border-radius: var(--raio-lg);
+  padding: 20px; position: sticky; top: 76px;
+}
+.painel-titulo { font-family: var(--fonte-display); font-weight:800; font-size:1rem; margin-bottom:4px; }
+.painel-sub { font-size:.78rem; color:var(--texto-mudo); margin-bottom:16px; }
+
+
+.busca-aluno-wrap { position: relative; margin-bottom: 12px; }
+.busca-aluno-wrap input {
+  width:100%; padding:10px 12px; border:1.5px solid var(--borda-forte); border-radius:var(--raio);
+  font-size:.9rem; outline:none; transition:border-color .15s;
+}
+.busca-aluno-wrap input:focus { border-color: var(--azul-medio); box-shadow:0 0 0 3px var(--azul-claro); }
+.autocomplete-aluno {
+  position:absolute; top:100%; left:0; right:0; background:var(--card);
+  border:1px solid var(--borda-forte); border-radius:var(--raio); box-shadow:var(--sombra-lg);
+  max-height:260px; overflow-y:auto; z-index:60; display:none; margin-top:4px;
+}
+.autocomplete-aluno.aberta { display:block; }
+.autocomplete-aluno-item {
+  padding:10px 12px; cursor:pointer; font-size:.85rem; border-bottom:1px solid var(--borda);
+  display:flex; justify-content:space-between; align-items:center; gap:8px;
+}
+.autocomplete-aluno-item:hover { background: var(--azul-claro); }
+.autocomplete-aluno-item:last-child { border-bottom:none; }
+.autocomplete-aluno-meta { font-size:.72rem; color:var(--texto-mudo); }
+.autocomplete-aluno-alerta { font-size:.65rem; font-weight:700; color:#991B1B; background:var(--vermelho-claro); padding:2px 6px; border-radius:999px; }
+
+.autocomplete-cadastrar {
+  padding:10px 12px; cursor:pointer; font-size:.84rem; font-weight:700; color:var(--azul-medio);
+  border-top: 1px dashed var(--borda-forte); background: var(--azul-claro);
+}
+.autocomplete-cadastrar:hover { background: #CBDDFB; }
+
+.aluno-escolhido {
+  display:none; align-items:center; justify-content:space-between; gap:8px;
+  background: var(--azul-claro); border-radius: var(--raio); padding:10px 14px; margin-bottom:14px;
+}
+.aluno-escolhido.visivel { display:flex; }
+.aluno-escolhido-nome { font-weight:700; font-size:.86rem; color:var(--azul-medio); }
+.aluno-escolhido-meta { font-size:.72rem; color:var(--texto-secundario); }
+.aluno-escolhido button { background:none;border:none;cursor:pointer;color:var(--azul-medio);font-size:1rem; }
+
+
+.form-novo-aluno {
+  display:none; background:var(--fundo); border-radius:var(--raio); padding:14px; margin-bottom:14px;
+  border: 1px dashed var(--borda-forte);
+}
+.form-novo-aluno.visivel { display:block; }
+.form-novo-aluno-titulo { font-size:.8rem; font-weight:700; margin-bottom:10px; color:var(--texto-secundario); }
+.form-novo-aluno .campo { margin-bottom:8px; }
+.form-novo-aluno .campo input { padding:8px 10px; font-size:.84rem; }
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+
+
+.tipo-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:14px; }
+.tipo-chip {
+  border:2px solid transparent; border-radius:var(--raio); padding:10px 8px; text-align:center;
+  cursor:pointer; font-size:.78rem; font-weight:700; transition:all .15s; user-select:none;
+}
+.tipo-chip:hover { transform: translateY(-1px); }
+.tipo-chip.selecionado { border-color: currentColor; box-shadow: 0 0 0 2px currentColor inset; }
+
+.campo-rapido { margin-bottom:12px; }
+.campo-rapido label { display:block; font-size:.76rem; font-weight:700; color:var(--texto-secundario); margin-bottom:4px; }
+.campo-rapido input, .campo-rapido textarea {
+  width:100%; padding:9px 12px; border:1.5px solid var(--borda-forte); border-radius:var(--raio);
+  font-size:.88rem; outline:none; font-family:var(--fonte-corpo); transition:border-color .15s;
+}
+.campo-rapido textarea { resize:vertical; min-height:70px; }
+.campo-rapido input:focus, .campo-rapido textarea:focus { border-color:var(--azul-medio); box-shadow:0 0 0 3px var(--azul-claro); }
+
+
+.filtros-linha { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; align-items:center; }
+.busca-feed { position:relative; flex:1; min-width:180px; }
+.busca-feed input {
+  width:100%; padding:9px 14px 9px 34px; border:1.5px solid var(--borda-forte); border-radius:var(--raio);
+  font-size:.86rem; outline:none;
+}
+.busca-feed input:focus { border-color: var(--azul-medio); }
+.busca-feed-icone { position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--texto-mudo); font-size:.85rem; }
+
+.filtro-chip {
+  padding:6px 13px; border-radius:999px; border:1.5px solid var(--borda-forte); background:var(--card);
+  font-size:.78rem; font-weight:700; cursor:pointer; color:var(--texto-secundario); transition:all .15s;
+  white-space:nowrap;
+}
+.filtro-chip.ativo { border-color: var(--azul-medio); background: var(--azul-claro); color:var(--azul-medio); }
+
+.feed-lista { display:flex; flex-direction:column; gap:10px; }
+.oc-card {
+  background:var(--card); border:1px solid var(--borda); border-left:5px solid var(--texto-mudo);
+  border-radius:var(--raio-lg); padding:14px 18px;
+}
+.oc-card-topo { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+.oc-aluno-nome { font-family:var(--fonte-display); font-weight:700; font-size:.9rem; color:var(--azul-medio); cursor:pointer; }
+.oc-aluno-nome:hover { text-decoration:underline; }
+.oc-meta { font-size:.72rem; color:var(--texto-mudo); margin-top:1px; }
+.oc-tipo-badge { font-size:.7rem; font-weight:700; padding:3px 10px; border-radius:999px; white-space:nowrap; }
+.oc-descricao { font-size:.84rem; color:var(--texto); margin-top:8px; line-height:1.5; }
+.oc-envolvido { font-size:.76rem; color:var(--texto-secundario); margin-top:6px; }
+.oc-rodape { display:flex; justify-content:space-between; align-items:center; margin-top:10px; }
+.oc-data { font-size:.72rem; color:var(--texto-mudo); }
+.oc-remover { background:none;border:none;color:var(--vermelho); font-size:.72rem; font-weight:700; cursor:pointer; }
+.oc-remover:hover { text-decoration:underline; }
+
+.estado-vazio { text-align:center; padding:40px 20px; color:var(--texto-mudo); }
+.estado-vazio-icone { font-size:2rem; margin-bottom:10px; }
+
+
+.overlay-ficha {
+  display:none; position:fixed; inset:0; background:rgba(15,33,58,.5); z-index:300;
+  align-items:center; justify-content:center; padding:16px; backdrop-filter: blur(2px);
+}
+.overlay-ficha.aberto { display:flex; }
+.modal-ficha {
+  background:var(--card); border-radius:16px; width:100%; max-width:560px; max-height:85vh;
+  overflow-y:auto; box-shadow:0 24px 48px rgba(0,0,0,.2); padding:24px;
+}
+.ficha-topo { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; }
+.ficha-nome { font-family:var(--fonte-display); font-weight:800; font-size:1.2rem; }
+.ficha-meta { font-size:.82rem; color:var(--texto-secundario); margin-bottom:14px; }
+.ficha-alerta {
+  background:var(--vermelho-claro); color:#991B1B; padding:10px 14px; border-radius:var(--raio);
+  font-size:.82rem; font-weight:600; margin-bottom:16px; display:none; align-items:center; gap:8px;
+}
+.ficha-alerta.visivel { display:flex; }
+.ficha-timeline { display:flex; flex-direction:column; gap:10px; margin-top:12px; }
+.ficha-fechar { background:var(--fundo);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:.9rem; }
+
+@media (max-width: 860px) {
+  .oc-layout { grid-template-columns: 1fr; }
+  .painel-registro { position: static; }
+}
+</style>
+{% endblock %}
+
+{% block conteudo %}
+
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icone" style="background:var(--azul-claro)">🎓</div>
+    <div><div class="stat-numero" id="stat-alunos">—</div><div class="stat-label">Alunos cadastrados</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icone" style="background:var(--vermelho-claro)">📋</div>
+    <div><div class="stat-numero" id="stat-mes">—</div><div class="stat-label">Ocorrências no mês</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icone" style="background:var(--verde-claro)">🌟</div>
+    <div><div class="stat-numero" id="stat-elogios">—</div><div class="stat-label">Elogios no mês</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icone" style="background:#FFEDD5">⚠️</div>
+    <div><div class="stat-numero" id="stat-alerta" style="color:var(--vermelho)">—</div><div class="stat-label">Alunos em alerta</div></div>
+  </div>
+</div>
+
+<div class="oc-layout">
+
+  
+  <div class="painel-registro">
+    <div class="painel-titulo">📝 Registrar ocorrência</div>
+    <div class="painel-sub">Busque o aluno, escolha o tipo e descreva o ocorrido.</div>
+
+    
+    <div class="busca-aluno-wrap" id="busca-aluno-container">
+      <input type="text" id="busca-aluno" placeholder="Digite o nome do aluno…" autocomplete="off"
+             oninput="buscarAlunoAutocomplete()">
+      <div class="autocomplete-aluno" id="autocomplete-aluno"></div>
+    </div>
+
+    <div class="aluno-escolhido" id="aluno-escolhido">
+      <div>
+        <div class="aluno-escolhido-nome" id="aluno-escolhido-nome"></div>
+        <div class="aluno-escolhido-meta" id="aluno-escolhido-meta"></div>
+      </div>
+      <button onclick="limparAlunoEscolhido()" title="Trocar aluno">✕</button>
+    </div>
+
+    
+    <div class="form-novo-aluno" id="form-novo-aluno">
+      <div class="form-novo-aluno-titulo">+ Cadastrar novo aluno</div>
+      <div class="campo"><input type="text" id="na-nome" placeholder="Nome completo"></div>
+      <div class="campo">
+        <select id="na-turma">
+          <option value="">Selecione a turma…</option>
+          {% for t in turmas %}
+          <option value="{{ t.turma }}">{{ t.turma }} — {{ t.curso }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-primario btn-sm w-full" onclick="cadastrarAlunoRapido()">Cadastrar e selecionar</button>
+    </div>
+
+    
+    <div class="campo-rapido">
+      <label>Tipo de ocorrência</label>
+      <div class="tipo-grid" id="tipo-grid">
+        {% for t in tipos %}
+        <div class="tipo-chip" data-id="{{ t.id }}" onclick="escolherTipo(this, '{{ t.id }}')">
+          {{ t.nome }}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="campo-rapido">
+      <label>Outro aluno envolvido (opcional)</label>
+      <input type="text" id="oc-envolvido2" placeholder="Ex: nome do colega, se houver">
+    </div>
+
+    <div class="campo-rapido">
+      <label>Descrição</label>
+      <textarea id="oc-descricao" placeholder="Descreva o que aconteceu…"></textarea>
+    </div>
+
+    <button class="btn btn-primario w-full" id="btn-registrar" onclick="registrarOcorrencia()">
+      Registrar ocorrência
+    </button>
+  </div>
+
+  
+  <div>
+    <div class="filtros-linha">
+      <div class="busca-feed">
+        <span class="busca-feed-icone">🔍</span>
+        <input type="text" id="busca-feed" placeholder="Buscar por aluno…" oninput="debounceFeed()">
+      </div>
+      <button class="filtro-chip ativo" data-dias="" onclick="filtrarPeriodo(this,null)">Tudo</button>
+      <button class="filtro-chip" data-dias="7" onclick="filtrarPeriodo(this,7)">7 dias</button>
+      <button class="filtro-chip" data-dias="30" onclick="filtrarPeriodo(this,30)">30 dias</button>
+    </div>
+
+    <div class="filtros-linha" id="filtros-tipo">
+      <button class="filtro-chip ativo" data-tipo="" onclick="filtrarTipo(this,'')">Todos os tipos</button>
+      {% for t in tipos %}
+      <button class="filtro-chip" data-tipo="{{ t.id }}" onclick="filtrarTipo(this,'{{ t.id }}')">{{ t.nome }}</button>
+      {% endfor %}
+    </div>
+
+    <div class="feed-lista" id="feed-lista">
+      <div class="estado-vazio"><div class="estado-vazio-icone">⏳</div>Carregando…</div>
+    </div>
+  </div>
+
+</div>
+
+
+<div class="overlay-ficha" id="overlay-ficha" onclick="fecharFichaFora(event)">
+  <div class="modal-ficha">
+    <div class="ficha-topo">
+      <div>
+        <div class="ficha-nome" id="ficha-nome"></div>
+        <div class="ficha-meta" id="ficha-meta"></div>
+      </div>
+      <button class="ficha-fechar" onclick="fecharFicha()">✕</button>
+    </div>
+    <div class="ficha-alerta" id="ficha-alerta">
+      <span>⚠️</span><span id="ficha-alerta-texto"></span>
+    </div>
+    <div class="ficha-timeline" id="ficha-timeline"></div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CORES = {
+  verde:    { bg:'#DCFCE7', fg:'#166534' },
+  amarelo:  { bg:'#FEF9C3', fg:'#854D0E' },
+  laranja:  { bg:'#FFEDD5', fg:'#9A3412' },
+  azul:     { bg:'#DBEAFE', fg:'#1E40AF' },
+  vermelho: { bg:'#FEE2E2', fg:'#991B1B' },
+  cinza:    { bg:'#F1F5F9', fg:'#475569' },
+};
+
+let alunoSelecionadoId = null;
+let tipoSelecionado = null;
+let timerAutocompleteAluno = null;
+let timerFeed = null;
+let filtroTipoAtivo = "";
+let filtroDiasAtivo = null;
+
+document.addEventListener("DOMContentLoaded", () => {
+  carregarStats();
+  carregarFeed();
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#busca-aluno-container")) {
+      document.getElementById("autocomplete-aluno").classList.remove("aberta");
+    }
+  });
+});
+
+
+async function carregarStats() {
+  const r = await api("get", "/ocorrencias/api/status");
+  if (!r.ok) return;
+  document.getElementById("stat-alunos").textContent  = r.dados.total_alunos_cadastrados;
+  document.getElementById("stat-mes").textContent     = r.dados.ocorrencias_mes;
+  document.getElementById("stat-elogios").textContent = r.dados.elogios_mes;
+  document.getElementById("stat-alerta").textContent  = r.dados.alunos_em_alerta;
+}
+
+
+function buscarAlunoAutocomplete() {
+  clearTimeout(timerAutocompleteAluno);
+  const termo = document.getElementById("busca-aluno").value.trim();
+  const lista = document.getElementById("autocomplete-aluno");
+
+  document.getElementById("form-novo-aluno").classList.remove("visivel");
+
+  if (termo.length < 2) { lista.classList.remove("aberta"); return; }
+
+  timerAutocompleteAluno = setTimeout(async () => {
+    const r = await api("get", `/ocorrencias/api/alunos?busca=${encodeURIComponent(termo)}`);
+    if (!r.ok) return;
+
+    let html = r.dados.map(a => `
+      <div class="autocomplete-aluno-item" onclick="escolherAluno(${a.id}, '${escapeAttr(a.nome)}', '${escapeAttr(a.turma)}', '${escapeAttr(a.curso)}', ${a.em_alerta})">
+        <div>
+          <div style="font-weight:600;">${a.nome}</div>
+          <div class="autocomplete-aluno-meta">${a.serie} · ${a.turma} · ${a.curso}</div>
+        </div>
+        ${a.em_alerta ? '<span class="autocomplete-aluno-alerta">⚠ Em alerta</span>' : ''}
+      </div>`).join("");
+
+    html += `<div class="autocomplete-cadastrar" onclick="abrirCadastroRapido('${escapeAttr(termo)}')">
+      + Cadastrar "${termo}" como novo aluno
+    </div>`;
+
+    lista.innerHTML = html;
+    lista.classList.add("aberta");
+  }, 250);
+}
+
+function escaparHtml(s){ return s; }
+function escapeAttr(s) { return (s||"").replace(/'/g, "&#39;"); }
+
+function escolherAluno(id, nome, turma, curso, emAlerta) {
+  alunoSelecionadoId = id;
+  document.getElementById("aluno-escolhido-nome").textContent = nome;
+  document.getElementById("aluno-escolhido-meta").textContent = `${turma} · ${curso}` + (emAlerta ? " · ⚠ em alerta" : "");
+  document.getElementById("aluno-escolhido").classList.add("visivel");
+  document.getElementById("busca-aluno").value = "";
+  document.getElementById("autocomplete-aluno").classList.remove("aberta");
+  document.getElementById("form-novo-aluno").classList.remove("visivel");
+}
+
+function limparAlunoEscolhido() {
+  alunoSelecionadoId = null;
+  document.getElementById("aluno-escolhido").classList.remove("visivel");
+  document.getElementById("busca-aluno").focus();
+}
+
+function abrirCadastroRapido(nomeSugerido) {
+  document.getElementById("autocomplete-aluno").classList.remove("aberta");
+  document.getElementById("form-novo-aluno").classList.add("visivel");
+  document.getElementById("na-nome").value = nomeSugerido;
+  document.getElementById("na-turma").focus();
+}
+
+async function cadastrarAlunoRapido() {
+  const nome  = document.getElementById("na-nome").value.trim();
+  const turma = document.getElementById("na-turma").value;
+
+  if (!nome || !turma) { mostrarAlerta("Preencha o nome e selecione a turma.", "aviso"); return; }
+
+  const r = await api("post", "/ocorrencias/api/alunos", { nome, turma });
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao cadastrar aluno.", "erro"); return; }
+
+  mostrarAlerta(`${nome} cadastrado!`, "sucesso");
+  document.getElementById("form-novo-aluno").classList.remove("visivel");
+  document.getElementById("na-nome").value = "";
+  document.getElementById("na-turma").value = "";
+  escolherAluno(r.dados.aluno.id, nome, turma, r.dados.aluno.curso, false);
+  carregarStats();
+}
+
+/* ══════════════════════════════════════════════════
+   TIPO DE OCORRÊNCIA
+══════════════════════════════════════════════════ */
+function escolherTipo(el, id) {
+  tipoSelecionado = id;
+  document.querySelectorAll(".tipo-chip").forEach(c => {
+    c.classList.remove("selecionado");
+    const cor = CORES[c.dataset.cor] || CORES.cinza;
+  });
+  document.querySelectorAll(".tipo-chip").forEach(c => c.classList.remove("selecionado"));
+  el.classList.add("selecionado");
+  document.getElementById("oc-descricao").focus();
+}
+
+/* Aplica cores nos chips assim que a página carrega, lendo tipo->cor do backend */
+async function pintarChipsTipo() {
+  const r = await api("get", "/ocorrencias/api/tipos");
+  if (!r.ok) return;
+  r.dados.forEach(t => {
+    const el = document.querySelector(`.tipo-chip[data-id="${t.id}"]`);
+    if (!el) return;
+    const cor = CORES[t.cor] || CORES.cinza;
+    el.style.background = cor.bg;
+    el.style.color = cor.fg;
+    el.dataset.cor = t.cor;
+  });
+}
+pintarChipsTipo();
+
+/* ══════════════════════════════════════════════════
+   REGISTRAR OCORRÊNCIA
+══════════════════════════════════════════════════ */
+async function registrarOcorrencia() {
+  const envolvido2 = document.getElementById("oc-envolvido2").value.trim();
+  const descricao  = document.getElementById("oc-descricao").value.trim();
+
+  if (!alunoSelecionadoId) { mostrarAlerta("Selecione um aluno.", "aviso"); return; }
+  if (!tipoSelecionado)    { mostrarAlerta("Escolha o tipo de ocorrência.", "aviso"); return; }
+  if (!descricao)          { mostrarAlerta("Descreva o que aconteceu.", "aviso"); return; }
+
+  mostrarSpinner("btn-registrar");
+  const r = await api("post", "/ocorrencias/api/ocorrencias", {
+    aluno_id: alunoSelecionadoId, tipo: tipoSelecionado, envolvido_2: envolvido2, descricao
+  });
+  ocultarSpinner("btn-registrar");
+
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao registrar.", "erro"); return; }
+
+  mostrarAlerta("Ocorrência registrada!", "sucesso");
+  if (r.dados.aluno_em_alerta) {
+    mostrarAlerta(`⚠ Atenção: este aluno já tem ${r.dados.aluno_ocorrencias_recentes} ocorrências nos últimos 30 dias.`, "aviso", 8000);
+  }
+
+  // Reset do formulário, mantendo o painel pronto pro próximo registro
+  limparAlunoEscolhido();
+  document.querySelectorAll(".tipo-chip").forEach(c => c.classList.remove("selecionado"));
+  tipoSelecionado = null;
+  document.getElementById("oc-envolvido2").value = "";
+  document.getElementById("oc-descricao").value = "";
+
+  carregarStats();
+  carregarFeed();
+}
+
+/* ══════════════════════════════════════════════════
+   FEED DE OCORRÊNCIAS
+══════════════════════════════════════════════════ */
+function debounceFeed() {
+  clearTimeout(timerFeed);
+  timerFeed = setTimeout(carregarFeed, 300);
+}
+
+function filtrarTipo(btn, tipo) {
+  document.querySelectorAll('#filtros-tipo .filtro-chip').forEach(b => b.classList.remove("ativo"));
+  btn.classList.add("ativo");
+  filtroTipoAtivo = tipo;
+  carregarFeed();
+}
+
+function filtrarPeriodo(btn, dias) {
+  btn.parentElement.querySelectorAll(".filtro-chip").forEach(b => b.classList.remove("ativo"));
+  btn.classList.add("ativo");
+  filtroDiasAtivo = dias;
+  carregarFeed();
+}
+
+async function carregarFeed() {
+  const busca = document.getElementById("busca-feed").value.trim();
+  const params = new URLSearchParams();
+  if (busca) params.set("busca", busca);
+  if (filtroTipoAtivo) params.set("tipo", filtroTipoAtivo);
+  if (filtroDiasAtivo) params.set("dias", filtroDiasAtivo);
+
+  const r = await api("get", `/ocorrencias/api/ocorrencias?${params}`);
+  const lista = document.getElementById("feed-lista");
+
+  if (!r.ok) { lista.innerHTML = `<div class="estado-vazio">Erro ao carregar.</div>`; return; }
+  if (r.dados.length === 0) {
+    lista.innerHTML = `<div class="estado-vazio"><div class="estado-vazio-icone">📭</div>Nenhuma ocorrência encontrada.</div>`;
+    return;
+  }
+
+  lista.innerHTML = r.dados.map(ocCardHtml).join("");
+}
+
+function ocCardHtml(o) {
+  const cor = CORES[o.tipo_info.cor] || CORES.cinza;
+  return `
+    <div class="oc-card" style="border-left-color:${cor.fg}">
+      <div class="oc-card-topo">
+        <div>
+          <div class="oc-aluno-nome" onclick="abrirFicha(${o.aluno_id})">${o.aluno_nome}</div>
+          <div class="oc-meta">${o.aluno_turma} · ${o.aluno_curso}</div>
+        </div>
+        <span class="oc-tipo-badge" style="background:${cor.bg};color:${cor.fg}">${o.tipo_info.nome}</span>
+      </div>
+      <div class="oc-descricao">${o.descricao}</div>
+      ${o.envolvido_2 ? `<div class="oc-envolvido">👥 Também envolvido: ${o.envolvido_2}</div>` : ""}
+      <div class="oc-rodape">
+        <span class="oc-data">${formatarDataHora(o.data_hora)}</span>
+        <button class="oc-remover" onclick="removerOcorrencia(${o.numero})">Remover</button>
+      </div>
+    </div>`;
+}
+
+async function removerOcorrencia(numero) {
+  if (!confirm("Remover este registro de ocorrência?")) return;
+  const r = await api("delete", `/ocorrencias/api/ocorrencias/${numero}`);
+  if (r.ok) { mostrarAlerta("Removido.", "aviso"); carregarFeed(); carregarStats(); }
+  else mostrarAlerta(r.dados?.erro || "Erro.", "erro");
+}
+
+/* ══════════════════════════════════════════════════
+   FICHA DO ALUNO
+══════════════════════════════════════════════════ */
+async function abrirFicha(alunoId) {
+  const r = await api("get", `/ocorrencias/api/alunos/${alunoId}/ficha`);
+  if (!r.ok) { mostrarAlerta("Erro ao carregar ficha.", "erro"); return; }
+
+  const a = r.dados.aluno;
+  document.getElementById("ficha-nome").textContent = a.nome;
+  document.getElementById("ficha-meta").textContent = `${a.serie} · ${a.turma} · ${a.curso}`;
+
+  const alertaEl = document.getElementById("ficha-alerta");
+  if (a.em_alerta) {
+    alertaEl.classList.add("visivel");
+    document.getElementById("ficha-alerta-texto").textContent =
+      `${a.ocorrencias_recentes} ocorrências nos últimos 30 dias — considere uma conversa com a família.`;
+  } else {
+    alertaEl.classList.remove("visivel");
+  }
+
+  const timeline = document.getElementById("ficha-timeline");
+  if (a.ocorrencias.length === 0) {
+    timeline.innerHTML = `<div class="estado-vazio">Nenhuma ocorrência registrada ainda.</div>`;
+  } else {
+    timeline.innerHTML = a.ocorrencias.map(o => {
+      const cor = CORES[o.tipo_info.cor] || CORES.cinza;
+      return `
+        <div class="oc-card" style="border-left-color:${cor.fg}; margin:0;">
+          <div class="oc-card-topo">
+            <span class="oc-tipo-badge" style="background:${cor.bg};color:${cor.fg}">${o.tipo_info.nome}</span>
+            <span class="oc-data">${formatarDataHora(o.data_hora)}</span>
+          </div>
+          <div class="oc-descricao">${o.descricao}</div>
+          ${o.envolvido_2 ? `<div class="oc-envolvido">👥 Também envolvido: ${o.envolvido_2}</div>` : ""}
+        </div>`;
+    }).join("");
+  }
+
+  document.getElementById("overlay-ficha").classList.add("aberto");
+}
+
+function fecharFicha() { document.getElementById("overlay-ficha").classList.remove("aberto"); }
+function fecharFichaFora(e) { if (e.target.id === "overlay-ficha") fecharFicha(); }
+
+/* ══════════════════════════════════════════════════
+   UTILITÁRIOS
+══════════════════════════════════════════════════ */
+function formatarDataHora(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("pt-BR", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
+}
+</script>
+{% endblock %}

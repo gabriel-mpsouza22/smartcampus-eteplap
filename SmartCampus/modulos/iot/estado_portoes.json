@@ -1,0 +1,16 @@
+{
+  "portoes": {
+    "principal": {
+      "estado_atual": "fechado",
+      "estado_desejado": "fechado",
+      "atualizado_em": null
+    },
+    "secundario": {
+      "estado_atual": "fechado",
+      "estado_desejado": "fechado",
+      "atualizado_em": null
+    }
+  },
+  "ultima_automacao_abertura": null,
+  "ultima_automacao_fechamento": null
+}

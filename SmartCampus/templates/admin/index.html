@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block titulo %}Administração{% endblock %}
+{% block topbar_titulo %}⚙️ Administração{% endblock %}
+
+{% block estilos %}
+<style>
+.admin-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-bottom:28px; }
+.admin-card {
+  background:var(--card); border:1px solid var(--borda); border-radius:var(--raio-lg);
+  padding:22px; text-decoration:none; color:var(--texto); transition:all .15s;
+  display:flex; flex-direction:column; gap:8px; position:relative; overflow:hidden;
+}
+.admin-card::before { content:''; position:absolute; top:0;left:0;right:0;height:3px; background:var(--cor,var(--azul-medio)); }
+.admin-card:hover { box-shadow:var(--sombra-lg); transform:translateY(-2px); text-decoration:none; color:var(--texto); }
+.admin-card-icone { font-size:1.7rem; }
+.admin-card-titulo { font-family:var(--fonte-display); font-weight:700; font-size:1rem; }
+.admin-card-desc { font-size:.8rem; color:var(--texto-secundario); }
+
+.stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; }
+.stat-card { background:var(--card); border:1px solid var(--borda); border-radius:var(--raio-lg); padding:16px 18px; display:flex; align-items:center; gap:12px; }
+.stat-icone { width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;background:var(--fundo); }
+.stat-numero { font-family:var(--fonte-display); font-weight:800; font-size:1.25rem; line-height:1; }
+.stat-label { font-size:.68rem; color:var(--texto-mudo); font-weight:600; margin-top:2px; }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+
+<div class="admin-grid">
+  <a href="/admin/usuarios" class="admin-card" style="--cor:#2563EB">
+    <div class="admin-card-icone">👥</div>
+    <div class="admin-card-titulo">Usuários</div>
+    <div class="admin-card-desc">Criar, desativar e redefinir senhas de acesso ao sistema.</div>
+  </a>
+  <a href="/admin/backup" class="admin-card" style="--cor:#16A34A">
+    <div class="admin-card-icone">💾</div>
+    <div class="admin-card-titulo">Backup</div>
+    <div class="admin-card-desc">Gerar e baixar cópias de segurança do banco de dados.</div>
+  </a>
+  <a href="/admin/configuracoes" class="admin-card" style="--cor:#E8751A">
+    <div class="admin-card-icone">🛠️</div>
+    <div class="admin-card-titulo">Configurações</div>
+    <div class="admin-card-desc">Porta do servidor, endereço de rede e logs do sistema.</div>
+  </a>
+</div>
+
+<div class="secao-titulo" style="font-size:1rem;">Status do sistema</div>
+<div class="stats-grid" id="stats-sistema">
+  <div class="stat-card"><div class="stat-icone">🗂️</div><div><div class="stat-numero" id="s-tabelas">—</div><div class="stat-label">Tabelas no banco</div></div></div>
+  <div class="stat-card"><div class="stat-icone">📦</div><div><div class="stat-numero" id="s-tamanho">—</div><div class="stat-label">Tamanho dos dados</div></div></div>
+  <div class="stat-card"><div class="stat-icone">🏷️</div><div><div class="stat-numero" id="s-versao">—</div><div class="stat-label">Versão do sistema</div></div></div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(async () => {
+  const r = await api("get", "/admin/api/status-sistema");
+  if (!r.ok) return;
+  document.getElementById("s-tabelas").textContent  = r.dados.total_tabelas;
+  document.getElementById("s-tamanho").textContent  = `${r.dados.tamanho_dados_kb} KB`;
+  document.getElementById("s-versao").textContent   = r.dados.versao;
+})();
+</script>
+{% endblock %}

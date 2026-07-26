@@ -1,0 +1,35 @@
+{
+  "tabela": "mensagens_chat",
+  "colunas": [
+    {
+      "nome": "id",
+      "tipo": "INTEIRO",
+      "modificadores": [
+        "CHAVE_PRIMARIA",
+        "AUTO"
+      ]
+    },
+    {
+      "nome": "remetente",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "texto",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "data_hora",
+      "tipo": "DATA_HORA",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    }
+  ],
+  "criada_em": "2026-06-29T20:25:15.019589"
+}

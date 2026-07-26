@@ -1,0 +1,1089 @@
+{% extends "base.html" %}
+{% block titulo %}Biblioteca{% endblock %}
+{% block topbar_titulo %}📚 Biblioteca{% endblock %}
+
+{% block estilos %}
+<style>
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid var(--borda);
+  margin-bottom: 24px;
+}
+.tab-btn {
+  padding: 10px 18px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-family: var(--fonte-corpo);
+  font-size: .88rem;
+  font-weight: 700;
+  color: var(--texto-mudo);
+  cursor: pointer;
+  margin-bottom: -2px;
+  transition: color .15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tab-btn:hover { color: var(--texto-secundario); }
+.tab-btn.ativo { color: var(--azul-medio); border-bottom-color: var(--azul-medio); }
+.tab-conteudo  { display: none; }
+.tab-conteudo.ativo { display: block; animation: fadeIn .2s ease; }
+
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px,1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--card);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-lg);
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.stat-icone {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+.stat-numero {
+  font-family: var(--fonte-display);
+  font-weight: 800;
+  font-size: 1.4rem;
+  line-height: 1;
+  color: var(--texto);
+}
+.stat-label {
+  font-size: .72rem;
+  color: var(--texto-mudo);
+  font-weight: 600;
+  margin-top: 2px;
+}
+.stat-card.destaque .stat-icone { background: var(--vermelho-claro); }
+
+
+.acervo-layout {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+
+.painel-cadastro {
+  background: var(--card);
+  border: 2px solid var(--azul-claro);
+  border-radius: var(--raio-lg);
+  padding: 20px;
+  position: sticky;
+  top: 76px;
+}
+
+.painel-cadastro-titulo {
+  font-family: var(--fonte-display);
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--texto);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.painel-cadastro-sub {
+  font-size: .78rem;
+  color: var(--texto-mudo);
+  margin-bottom: 18px;
+}
+
+.contador-sessao {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--verde-claro);
+  color: #166534;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.campo-rapido { margin-bottom: 12px; }
+.campo-rapido label {
+  display: block;
+  font-size: .76rem;
+  font-weight: 700;
+  color: var(--texto-secundario);
+  margin-bottom: 4px;
+}
+.campo-rapido input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--borda-forte);
+  border-radius: var(--raio);
+  font-size: .9rem;
+  transition: border-color .15s, box-shadow .15s;
+  outline: none;
+  background: var(--card);
+  color: var(--texto);
+}
+.campo-rapido input:focus {
+  border-color: var(--azul-medio);
+  box-shadow: 0 0 0 3px var(--azul-claro);
+}
+
+.dica-atalho {
+  font-size: .7rem;
+  color: var(--texto-mudo);
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tecla {
+  background: var(--fundo);
+  border: 1px solid var(--borda-forte);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-family: var(--fonte-mono);
+  font-size: .68rem;
+  font-weight: 700;
+}
+
+.recem-adicionado {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--borda-forte);
+}
+.recem-titulo {
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--texto-mudo);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-bottom: 8px;
+}
+.recem-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: .8rem;
+  animation: slideIn .3s ease;
+}
+@keyframes slideIn { from { opacity:0; transform: translateX(-8px); } to { opacity:1; transform:translateX(0);} }
+.recem-item-nome { font-weight: 600; color: var(--texto); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.recem-item-undo {
+  background: none; border: none; color: var(--vermelho); font-size: .72rem;
+  cursor: pointer; font-weight: 700; flex-shrink:0;
+}
+.recem-item-undo:hover { text-decoration: underline; }
+
+
+.busca-linha {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.busca-input-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+.busca-input-wrap input {
+  width: 100%;
+  padding: 9px 14px 9px 36px;
+  border: 1.5px solid var(--borda-forte);
+  border-radius: var(--raio);
+  font-size: .88rem;
+  outline: none;
+  transition: border-color .15s;
+}
+.busca-input-wrap input:focus { border-color: var(--azul-medio); }
+.busca-icone {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--texto-mudo); font-size: .9rem; pointer-events: none;
+}
+.filtro-select {
+  padding: 9px 12px;
+  border: 1.5px solid var(--borda-forte);
+  border-radius: var(--raio);
+  font-size: .85rem;
+  background: var(--card);
+  color: var(--texto-secundario);
+  cursor: pointer;
+  outline: none;
+}
+
+
+.grade-livros {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+}
+
+.livro-card {
+  background: var(--card);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-lg);
+  padding: 14px 16px;
+  transition: box-shadow .15s, transform .15s;
+  position: relative;
+}
+.livro-card:hover { box-shadow: var(--sombra-md); transform: translateY(-1px); }
+
+.livro-card-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.livro-nome {
+  font-family: var(--fonte-display);
+  font-weight: 700;
+  font-size: .9rem;
+  color: var(--texto);
+  line-height: 1.3;
+}
+.livro-autor {
+  font-size: .78rem;
+  color: var(--texto-secundario);
+  margin-top: 2px;
+}
+.livro-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.livro-tag {
+  font-size: .68rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--fundo);
+  color: var(--texto-secundario);
+  font-weight: 600;
+}
+.livro-acoes {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+.livro-acoes button {
+  flex: 1;
+  padding: 6px;
+  font-size: .74rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  transition: opacity .15s;
+}
+.livro-acoes button:hover { opacity: .82; }
+.btn-emprestar { background: var(--azul-medio); color: #fff; }
+.btn-remover   { background: var(--fundo); color: var(--vermelho); }
+
+.badge-disp {
+  position: absolute; top: 12px; right: 12px;
+  width: 9px; height: 9px; border-radius: 50%;
+}
+.badge-disp.livre { background: var(--verde); box-shadow: 0 0 0 3px var(--verde-claro); }
+.badge-disp.ocupado { background: var(--vermelho); box-shadow: 0 0 0 3px var(--vermelho-claro); }
+
+.emprestado-info {
+  font-size: .72rem;
+  color: #991B1B;
+  background: var(--vermelho-claro);
+  padding: 5px 8px;
+  border-radius: 6px;
+  margin-top: 8px;
+}
+.emprestado-info.no-prazo { color: #92400E; background: var(--laranja-claro); }
+
+
+.emp-layout {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.painel-emprestimo {
+  background: var(--card);
+  border: 2px solid var(--laranja-claro);
+  border-radius: var(--raio-lg);
+  padding: 20px;
+  position: sticky;
+  top: 76px;
+}
+
+.autocomplete-wrap { position: relative; }
+.autocomplete-lista {
+  position: absolute;
+  top: 100%; left: 0; right: 0;
+  background: var(--card);
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra-lg);
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 50;
+  display: none;
+  margin-top: 4px;
+}
+.autocomplete-lista.aberta { display: block; }
+.autocomplete-item {
+  padding: 9px 12px;
+  cursor: pointer;
+  font-size: .84rem;
+  border-bottom: 1px solid var(--borda);
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.autocomplete-item:last-child { border-bottom: none; }
+.autocomplete-item:hover { background: var(--azul-claro); }
+.autocomplete-item .autor { color: var(--texto-mudo); font-size: .74rem; }
+
+.livro-escolhido {
+  background: var(--azul-claro);
+  border-radius: var(--raio);
+  padding: 10px 12px;
+  font-size: .82rem;
+  color: var(--azul-medio);
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+}
+.livro-escolhido.visivel { display: flex; }
+.livro-escolhido button { background:none;border:none;cursor:pointer;color:var(--azul-medio);font-size:1rem; }
+
+
+.tabela-emp-filtros {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.filtro-chip {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--borda-forte);
+  background: var(--card);
+  font-size: .8rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--texto-secundario);
+  transition: all .15s;
+}
+.filtro-chip.ativo { border-color: var(--azul-medio); background: var(--azul-claro); color: var(--azul-medio); }
+.filtro-chip.atrasados-count { border-color: var(--vermelho); }
+.filtro-chip.atrasados-count.ativo { background: var(--vermelho-claro); color: #991B1B; border-color:var(--vermelho); }
+
+.linha-emp-atrasada td { background: #FFF8F6 !important; }
+.tag-atraso {
+  font-size: .68rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--vermelho);
+  padding: 2px 7px;
+  border-radius: 999px;
+  margin-left: 6px;
+}
+
+
+#toast-catalogacao {
+  position: fixed;
+  bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--verde);
+  color: #fff;
+  padding: 12px 22px;
+  border-radius: 999px;
+  font-size: .85rem;
+  font-weight: 700;
+  box-shadow: var(--sombra-lg);
+  opacity: 0;
+  pointer-events: none;
+  transition: all .25s ease;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#toast-catalogacao.visivel { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+
+@media (max-width: 840px) {
+  .acervo-layout, .emp-layout { grid-template-columns: 1fr; }
+  .painel-cadastro, .painel-emprestimo { position: static; }
+}
+
+.estado-vazio { text-align:center; padding: 40px 20px; color: var(--texto-mudo); grid-column: 1/-1; }
+.estado-vazio-icone { font-size: 2rem; margin-bottom: 10px; }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icone" style="background:var(--azul-claro)">📚</div>
+    <div>
+      <div class="stat-numero" id="stat-total">—</div>
+      <div class="stat-label">Total no acervo</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icone" style="background:var(--verde-claro)">✓</div>
+    <div>
+      <div class="stat-numero" id="stat-disponiveis">—</div>
+      <div class="stat-label">Disponíveis</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icone" style="background:var(--laranja-claro)">📖</div>
+    <div>
+      <div class="stat-numero" id="stat-emprestados">—</div>
+      <div class="stat-label">Emprestados</div>
+    </div>
+  </div>
+  <div class="stat-card destaque">
+    <div class="stat-icone">⚠️</div>
+    <div>
+      <div class="stat-numero" id="stat-atrasados" style="color:var(--vermelho)">—</div>
+      <div class="stat-label">Em atraso</div>
+    </div>
+  </div>
+</div>
+
+
+<div class="tabs">
+  <button class="tab-btn ativo" data-tab="acervo" onclick="trocarTab('acervo')">📚 Acervo</button>
+  <button class="tab-btn" data-tab="emprestimos" onclick="trocarTab('emprestimos')">📖 Empréstimos</button>
+</div>
+
+
+<div class="tab-conteudo ativo" id="tab-acervo">
+  <div class="acervo-layout">
+
+    
+    <div class="painel-cadastro">
+      <div class="painel-cadastro-titulo">⚡ Catalogação rápida</div>
+      <div class="painel-cadastro-sub">Cadastre vários livros seguidos sem perder o ritmo.</div>
+
+      <div class="contador-sessao" id="contador-sessao" style="display:none;">
+        <span>✓</span> <span id="contador-texto">0 cadastrados nesta sessão</span>
+      </div>
+
+      <form id="form-cadastro" onsubmit="event.preventDefault(); cadastrarLivro();">
+        <div class="campo-rapido">
+          <label for="c-nome">Nome do livro</label>
+          <input type="text" id="c-nome" placeholder="Ex: Dom Casmurro" required autocomplete="off">
+        </div>
+        <div class="campo-rapido">
+          <label for="c-autor">Autor</label>
+          <input type="text" id="c-autor" placeholder="Ex: Machado de Assis" required autocomplete="off">
+        </div>
+        <div class="campo-rapido">
+          <label for="c-quantidade">Quantidade de exemplares</label>
+          <input type="number" id="c-quantidade" value="1" min="1" max="200" autocomplete="off">
+          <div class="text-xs text-mudo mt-8" id="dica-quantidade" style="display:none;"></div>
+        </div>
+        <div class="campo-rapido">
+          <label for="c-genero">Gênero</label>
+          <input type="text" id="c-genero" list="lista-generos" placeholder="Ex: Romance" autocomplete="off">
+          <datalist id="lista-generos"></datalist>
+        </div>
+        <div class="campo-rapido">
+          <label for="c-prateleira">Prateleira</label>
+          <input type="text" id="c-prateleira" list="lista-prateleiras" placeholder="Ex: A-12" autocomplete="off">
+          <datalist id="lista-prateleiras"></datalist>
+        </div>
+
+        <button type="submit" class="btn btn-primario w-full" id="btn-cadastrar">
+          + Cadastrar e continuar
+        </button>
+        <div class="dica-atalho">
+          Pressione <span class="tecla">Enter</span> para cadastrar rapidamente
+        </div>
+      </form>
+
+      <div class="recem-adicionado" id="recem-adicionado" style="display:none;">
+        <div class="recem-titulo">Adicionados agora</div>
+        <div id="recem-lista"></div>
+      </div>
+    </div>
+
+    
+    <div>
+      <div class="busca-linha">
+        <div class="busca-input-wrap">
+          <span class="busca-icone">🔍</span>
+          <input type="text" id="busca-acervo" placeholder="Buscar por nome, autor ou gênero…"
+                 oninput="debounceBuscarAcervo()">
+        </div>
+        <select class="filtro-select" id="filtro-status-acervo" onchange="carregarAcervo()">
+          <option value="">Todos os status</option>
+          <option value="disponivel">Somente disponíveis</option>
+          <option value="emprestado">Somente emprestados</option>
+        </select>
+      </div>
+
+      <div class="grade-livros" id="grade-livros">
+        <div class="estado-vazio">
+          <div class="estado-vazio-icone">⏳</div>
+          Carregando acervo…
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="tab-conteudo" id="tab-emprestimos">
+  <div class="emp-layout">
+
+    
+    <div class="painel-emprestimo">
+      <div class="painel-cadastro-titulo">📖 Novo empréstimo</div>
+      <div class="painel-cadastro-sub">Busque o livro e informe os dados do aluno.</div>
+
+      <div class="campo-rapido autocomplete-wrap">
+        <label for="e-busca-livro">Livro</label>
+        <input type="text" id="e-busca-livro" placeholder="Digite para buscar…"
+               oninput="buscarLivroAutocomplete()" autocomplete="off">
+        <div class="autocomplete-lista" id="autocomplete-livros"></div>
+      </div>
+
+      <div class="livro-escolhido" id="livro-escolhido-box">
+        <span id="livro-escolhido-nome"></span>
+        <button onclick="limparLivroEscolhido()" title="Remover seleção">✕</button>
+      </div>
+
+      <div class="campo-rapido">
+        <label for="e-aluno-nome">Nome do aluno</label>
+        <input type="text" id="e-aluno-nome" placeholder="Nome completo" autocomplete="off">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="campo-rapido">
+          <label for="e-aluno-turma">Turma</label>
+          <input type="text" id="e-aluno-turma" placeholder="Ex: 2A Redes" autocomplete="off">
+        </div>
+        <div class="campo-rapido">
+          <label for="e-aluno-curso">Curso</label>
+          <input type="text" id="e-aluno-curso" placeholder="Ex: Redes" autocomplete="off">
+        </div>
+      </div>
+      <div class="campo-rapido">
+        <label for="e-dias">Prazo de devolução</label>
+        <input type="number" id="e-dias" value="7" min="1" max="60">
+      </div>
+
+      <button class="btn btn-sucesso w-full" id="btn-emprestar" onclick="confirmarEmprestimo()">
+        Confirmar empréstimo
+      </button>
+    </div>
+
+    
+    <div>
+      <div class="tabela-emp-filtros">
+        <button class="filtro-chip ativo" data-status="ativos" onclick="filtrarEmprestimos(this,'ativos')">
+          📖 Emprestados
+        </button>
+        <button class="filtro-chip atrasados-count" data-status="atrasados" onclick="filtrarEmprestimos(this,'atrasados')">
+          ⚠️ Atrasados <span id="badge-atrasados"></span>
+        </button>
+        <button class="filtro-chip" data-status="historico" onclick="filtrarEmprestimos(this,'historico')">
+          🗂 Histórico
+        </button>
+      </div>
+
+      <div class="tabela-wrapper card" style="padding:0;">
+        <table>
+          <thead>
+            <tr>
+              <th>Aluno</th>
+              <th>Livro</th>
+              <th>Empréstimo</th>
+              <th>Devolução prevista</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="corpo-emprestimos">
+            <tr><td colspan="5" style="text-align:center;padding:24px;color:var(--texto-mudo);">Carregando…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div id="toast-catalogacao">
+  <span>✓</span> <span id="toast-texto"></span>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+
+let contadorSessao   = 0;
+let ultimosAdicionados = [];  
+let livroEscolhidoId = null;
+let statusEmpAtivo   = "ativos";
+let timerBuscaAcervo = null;
+let timerAutocomplete = null;
+
+
+document.addEventListener("DOMContentLoaded", () => {
+  carregarStats();
+  carregarAcervo();
+  carregarAutocompleteListas();
+  carregarEmprestimos();
+  document.getElementById("c-nome").focus();
+
+  
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".autocomplete-wrap")) {
+      document.getElementById("autocomplete-livros").classList.remove("aberta");
+    }
+  });
+});
+
+
+function trocarTab(nome) {
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("ativo", b.dataset.tab === nome));
+  document.querySelectorAll(".tab-conteudo").forEach(c => c.classList.remove("ativo"));
+  document.getElementById(`tab-${nome}`).classList.add("ativo");
+  if (nome === "emprestimos") carregarEmprestimos();
+}
+
+
+async function carregarStats() {
+  const r = await api("get", "/biblioteca/api/status");
+  if (!r.ok) return;
+  document.getElementById("stat-total").textContent        = r.dados.total_livros;
+  document.getElementById("stat-disponiveis").textContent  = r.dados.total_disponiveis;
+  document.getElementById("stat-emprestados").textContent  = r.dados.total_emprestados;
+  document.getElementById("stat-atrasados").textContent    = r.dados.total_atrasados;
+
+  const badge = document.getElementById("badge-atrasados");
+  badge.textContent = r.dados.total_atrasados > 0 ? `(${r.dados.total_atrasados})` : "";
+}
+
+
+async function cadastrarLivro() {
+  const nome       = document.getElementById("c-nome").value.trim();
+  const autor      = document.getElementById("c-autor").value.trim();
+  const genero     = document.getElementById("c-genero").value.trim();
+  const prateleira = document.getElementById("c-prateleira").value.trim();
+  let   quantidade = parseInt(document.getElementById("c-quantidade").value, 10);
+  if (!quantidade || quantidade < 1) quantidade = 1;
+
+  if (!nome || !autor) { mostrarAlerta("Nome e autor são obrigatórios.", "aviso"); return; }
+
+  mostrarSpinner("btn-cadastrar");
+  const r = await api("post", "/biblioteca/api/livros", { nome, autor, genero, prateleira, quantidade });
+  ocultarSpinner("btn-cadastrar");
+
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao cadastrar.", "erro"); return; }
+
+  
+  const criados = r.dados.livros; 
+  contadorSessao += criados.length;
+  atualizarContadorSessao();
+
+  if (criados.length > 1) {
+    mostrarToast(`${criados.length} exemplares de "${nome}" cadastrados!`);
+  } else {
+    mostrarToast(`"${nome}" cadastrado!`);
+  }
+  registrarRecemAdicionado(criados, nome);
+
+  document.getElementById("c-nome").value = "";
+  document.getElementById("c-autor").value = "";
+  document.getElementById("c-quantidade").value = "1";
+  document.getElementById("dica-quantidade").style.display = "none";
+  document.getElementById("c-nome").focus();
+
+  carregarAcervo();
+  carregarStats();
+  carregarAutocompleteListas();
+}
+
+
+function atualizarDicaQuantidade() {
+  const nome = document.getElementById("c-nome").value.trim();
+  const qtd  = parseInt(document.getElementById("c-quantidade").value, 10) || 1;
+  const dica = document.getElementById("dica-quantidade");
+
+  if (qtd <= 1 || !nome) { dica.style.display = "none"; return; }
+
+  dica.style.display = "block";
+  if (qtd <= 4) {
+    const exemplos = Array.from({length: qtd}, (_, i) => `"${nome} ${i+1}"`).join(", ");
+    dica.textContent = `Será criado: ${exemplos}`;
+  } else {
+    dica.textContent = `Serão criados: "${nome} 1", "${nome} 2" … "${nome} ${qtd}" (${qtd} exemplares)`;
+  }
+}
+
+function atualizarContadorSessao() {
+  const el = document.getElementById("contador-sessao");
+  el.style.display = "inline-flex";
+  document.getElementById("contador-texto").textContent =
+    `${contadorSessao} cadastrado${contadorSessao>1?"s":""} nesta sessão`;
+}
+
+function mostrarToast(texto) {
+  const toast = document.getElementById("toast-catalogacao");
+  document.getElementById("toast-texto").textContent = texto;
+  toast.classList.add("visivel");
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove("visivel"), 2200);
+}
+
+
+function registrarRecemAdicionado(livrosCriados, nomeBase) {
+  const ids = livrosCriados.map(l => l.id);
+  const grupoId = ids.join("-");
+
+  ultimosAdicionados.unshift({
+    grupoId,
+    ids,
+    nome: livrosCriados.length > 1 ? `${nomeBase} (${livrosCriados.length} exemplares)` : nomeBase,
+  });
+  ultimosAdicionados = ultimosAdicionados.slice(0, 5);
+
+  const wrap = document.getElementById("recem-adicionado");
+  wrap.style.display = "block";
+
+  const lista = document.getElementById("recem-lista");
+  lista.innerHTML = ultimosAdicionados.map(item => `
+    <div class="recem-item" id="recem-${item.grupoId}">
+      <span class="recem-item-nome" title="${item.nome}">${item.nome}</span>
+      <button class="recem-item-undo" onclick="desfazerCadastro('${item.grupoId}')">desfazer</button>
+    </div>
+  `).join("");
+}
+
+async function desfazerCadastro(grupoId) {
+  const item = ultimosAdicionados.find(i => i.grupoId === grupoId);
+  if (!item) return;
+
+  const rota = item.ids.length > 1 ? "/biblioteca/api/livros/lote" : `/biblioteca/api/livros/${item.ids[0]}`;
+  const metodo = "delete";
+  const r = item.ids.length > 1
+    ? await api(metodo, rota, { ids: item.ids })
+    : await api(metodo, rota);
+
+  if (!r.ok) {
+    mostrarAlerta(r.dados?.erro || "Não foi possível desfazer.", "erro");
+    return;
+  }
+
+  const removidos = item.ids.length > 1 ? (r.dados.removidos || []) : item.ids;
+  const bloqueados = item.ids.length > 1 ? (r.dados.bloqueados || []) : [];
+
+  ultimosAdicionados = ultimosAdicionados.filter(i => i.grupoId !== grupoId);
+  document.getElementById(`recem-${grupoId}`)?.remove();
+  contadorSessao = Math.max(0, contadorSessao - removidos.length);
+  atualizarContadorSessao();
+  carregarAcervo();
+  carregarStats();
+
+  if (bloqueados.length > 0) {
+    mostrarAlerta(
+      `${removidos.length} exemplar(es) removido(s). ${bloqueados.length} não foi(ram) removido(s) por já estar(em) emprestado(s).`,
+      "aviso", 6000
+    );
+  } else {
+    mostrarAlerta("Cadastro desfeito.", "aviso");
+  }
+}
+
+
+["c-nome","c-autor","c-quantidade","c-genero","c-prateleira"].forEach(id => {
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById(id)?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); cadastrarLivro(); }
+    });
+  });
+});
+
+
+async function carregarAutocompleteListas() {
+  const [rg, rp] = await Promise.all([
+    api("get", "/biblioteca/api/generos"),
+    api("get", "/biblioteca/api/prateleiras"),
+  ]);
+  if (rg.ok) {
+    document.getElementById("lista-generos").innerHTML =
+      rg.dados.map(g => `<option value="${g}">`).join("");
+  }
+  if (rp.ok) {
+    document.getElementById("lista-prateleiras").innerHTML =
+      rp.dados.map(p => `<option value="${p}">`).join("");
+  }
+}
+
+
+function debounceBuscarAcervo() {
+  clearTimeout(timerBuscaAcervo);
+  timerBuscaAcervo = setTimeout(carregarAcervo, 300);
+}
+
+async function carregarAcervo() {
+  const busca  = document.getElementById("busca-acervo").value.trim();
+  const status = document.getElementById("filtro-status-acervo").value;
+
+  const params = new URLSearchParams();
+  if (busca)  params.set("busca", busca);
+  if (status) params.set("status", status);
+
+  const r = await api("get", `/biblioteca/api/livros?${params}`);
+  const grade = document.getElementById("grade-livros");
+
+  if (!r.ok) {
+    grade.innerHTML = `<div class="estado-vazio"><div class="estado-vazio-icone">⚠️</div>Erro ao carregar acervo.</div>`;
+    return;
+  }
+
+  if (r.dados.length === 0) {
+    grade.innerHTML = `
+      <div class="estado-vazio">
+        <div class="estado-vazio-icone">📭</div>
+        ${busca ? "Nenhum livro encontrado para essa busca." : "Nenhum livro cadastrado ainda. Use o formulário ao lado!"}
+      </div>`;
+    return;
+  }
+
+  grade.innerHTML = r.dados.map(livroCardHtml).join("");
+}
+
+function livroCardHtml(l) {
+  const tags = [];
+  if (l.genero)     tags.push(`<span class="livro-tag">${l.genero}</span>`);
+  if (l.prateleira) tags.push(`<span class="livro-tag">📍 ${l.prateleira}</span>`);
+
+  let infoEmprestimo = "";
+  if (!l.disponivel && l.emprestimo_ativo) {
+    const emp = l.emprestimo_ativo;
+    const cls = emp.atrasado ? "" : "no-prazo";
+    infoEmprestimo = `
+      <div class="emprestado-info ${cls}">
+        ${emp.atrasado ? "⚠️ Atrasado —" : "📖"} ${emp.aluno_nome} · devolução ${formatarData(emp.data_prevista_devolucao)}
+      </div>`;
+  }
+
+  return `
+    <div class="livro-card">
+      <span class="badge-disp ${l.disponivel ? 'livre' : 'ocupado'}"
+            title="${l.disponivel ? 'Disponível' : 'Emprestado'}"></span>
+      <div class="livro-card-topo">
+        <div>
+          <div class="livro-nome">${l.nome}</div>
+          <div class="livro-autor">${l.autor}</div>
+        </div>
+      </div>
+      <div class="livro-meta">${tags.join("")}</div>
+      ${infoEmprestimo}
+      <div class="livro-acoes">
+        ${l.disponivel
+          ? `<button class="btn-emprestar" onclick="irEmprestarLivro(${l.id}, '${escapeAttr(l.nome)}')">Emprestar</button>`
+          : ``}
+        <button class="btn-remover" onclick="removerLivro(${l.id}, '${escapeAttr(l.nome)}')">Remover</button>
+      </div>
+    </div>`;
+}
+
+function escapeAttr(s) { return (s||"").replace(/'/g, "&#39;"); }
+
+async function removerLivro(id, nome) {
+  if (!confirm(`Remover "${nome}" do acervo?`)) return;
+  const r = await api("delete", `/biblioteca/api/livros/${id}`);
+  if (r.ok) {
+    mostrarAlerta("Livro removido.", "aviso");
+    carregarAcervo(); carregarStats();
+  } else {
+    mostrarAlerta(r.dados?.erro || "Erro ao remover.", "erro");
+  }
+}
+
+/* Atalho: ir da grade direto pro empréstimo já com o livro escolhido */
+function irEmprestarLivro(id, nome) {
+  trocarTab("emprestimos");
+  document.querySelector('.tab-btn[data-tab="emprestimos"]').classList.add("ativo");
+  document.querySelector('.tab-btn[data-tab="acervo"]').classList.remove("ativo");
+  document.getElementById("tab-emprestimos").classList.add("ativo");
+  document.getElementById("tab-acervo").classList.remove("ativo");
+  escolherLivro(id, nome);
+  document.getElementById("e-aluno-nome").focus();
+}
+
+/* ══════════════════════════════════════════════════
+   AUTOCOMPLETE DE LIVRO (para empréstimo)
+══════════════════════════════════════════════════ */
+function buscarLivroAutocomplete() {
+  clearTimeout(timerAutocomplete);
+  const termo = document.getElementById("e-busca-livro").value.trim();
+  const lista = document.getElementById("autocomplete-livros");
+
+  if (termo.length < 2) { lista.classList.remove("aberta"); return; }
+
+  timerAutocomplete = setTimeout(async () => {
+    const r = await api("get", `/biblioteca/api/livros?busca=${encodeURIComponent(termo)}&status=disponivel`);
+    if (!r.ok) return;
+
+    if (r.dados.length === 0) {
+      lista.innerHTML = `<div class="autocomplete-item" style="color:var(--texto-mudo)">Nenhum livro disponível encontrado</div>`;
+      lista.classList.add("aberta");
+      return;
+    }
+
+    lista.innerHTML = r.dados.slice(0, 8).map(l => `
+      <div class="autocomplete-item" onclick="escolherLivro(${l.id}, '${escapeAttr(l.nome)}')">
+        <span>${l.nome}</span><span class="autor">${l.autor}</span>
+      </div>`).join("");
+    lista.classList.add("aberta");
+  }, 250);
+}
+
+function escolherLivro(id, nome) {
+  livroEscolhidoId = id;
+  document.getElementById("livro-escolhido-nome").textContent = nome;
+  document.getElementById("livro-escolhido-box").classList.add("visivel");
+  document.getElementById("e-busca-livro").value = "";
+  document.getElementById("autocomplete-livros").classList.remove("aberta");
+}
+
+function limparLivroEscolhido() {
+  livroEscolhidoId = null;
+  document.getElementById("livro-escolhido-box").classList.remove("visivel");
+}
+
+/* ══════════════════════════════════════════════════
+   NOVO EMPRÉSTIMO
+══════════════════════════════════════════════════ */
+async function confirmarEmprestimo() {
+  const nome  = document.getElementById("e-aluno-nome").value.trim();
+  const turma = document.getElementById("e-aluno-turma").value.trim();
+  const curso = document.getElementById("e-aluno-curso").value.trim();
+  const dias  = document.getElementById("e-dias").value;
+
+  if (!livroEscolhidoId) { mostrarAlerta("Selecione um livro na busca.", "aviso"); return; }
+  if (!nome || !turma || !curso) { mostrarAlerta("Preencha nome, turma e curso do aluno.", "aviso"); return; }
+
+  mostrarSpinner("btn-emprestar");
+  const r = await api("post", "/biblioteca/api/emprestimos", {
+    livro_id: livroEscolhidoId, aluno_nome: nome, aluno_turma: turma, aluno_curso: curso, dias
+  });
+  ocultarSpinner("btn-emprestar");
+
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao registrar empréstimo.", "erro", 6000); return; }
+
+  mostrarAlerta(`Empréstimo registrado para ${nome}! 📖`, "sucesso");
+  limparLivroEscolhido();
+  document.getElementById("e-aluno-nome").value  = "";
+  document.getElementById("e-aluno-turma").value = "";
+  document.getElementById("e-aluno-curso").value = "";
+  document.getElementById("e-dias").value = 7;
+
+  carregarStats();
+  carregarAcervo();
+  carregarEmprestimos();
+}
+
+/* ══════════════════════════════════════════════════
+   LISTA DE EMPRÉSTIMOS
+══════════════════════════════════════════════════ */
+function filtrarEmprestimos(btn, status) {
+  document.querySelectorAll(".filtro-chip").forEach(b => b.classList.remove("ativo"));
+  btn.classList.add("ativo");
+  statusEmpAtivo = status;
+  carregarEmprestimos();
+}
+
+async function carregarEmprestimos() {
+  const r = await api("get", `/biblioteca/api/emprestimos?status=${statusEmpAtivo}`);
+  const corpo = document.getElementById("corpo-emprestimos");
+
+  if (!r.ok) {
+    corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;">Erro ao carregar.</td></tr>`;
+    return;
+  }
+  if (r.dados.length === 0) {
+    const msgs = { ativos: "Nenhum empréstimo ativo.", atrasados: "Nenhum atraso — tudo em dia! 🎉", historico: "Nenhum histórico ainda." };
+    corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--texto-mudo);">${msgs[statusEmpAtivo]}</td></tr>`;
+    return;
+  }
+
+  corpo.innerHTML = r.dados.map(e => {
+    const linhaCls = e.atrasado ? "linha-emp-atrasada" : "";
+    const tagAtraso = e.atrasado ? `<span class="tag-atraso">${e.dias_atraso}d atraso</span>` : "";
+    const acoes = e.devolvido ? "" : `
+      <div class="flex gap-8">
+        <button class="btn btn-sucesso btn-sm" onclick="devolverLivro(${e.id})">Devolver</button>
+        <button class="btn btn-secundario btn-sm" onclick="renovarEmprestimo(${e.id})">+7d</button>
+      </div>`;
+
+    return `
+      <tr class="${linhaCls}">
+        <td><b>${e.aluno_nome}</b><br><span class="text-xs text-mudo">${e.aluno_turma} · ${e.aluno_curso}</span></td>
+        <td>${e.livro_nome}<br><span class="text-xs text-mudo">${e.livro_autor}</span></td>
+        <td class="mono text-sm">${formatarData(e.data_emprestimo)}</td>
+        <td class="mono text-sm">${formatarData(e.data_prevista_devolucao)} ${tagAtraso}</td>
+        <td>${acoes}</td>
+      </tr>`;
+  }).join("");
+}
+
+async function devolverLivro(id) {
+  if (!confirm("Confirmar devolução deste livro?")) return;
+  const r = await api("post", `/biblioteca/api/emprestimos/${id}/devolver`);
+  if (r.ok) {
+    mostrarAlerta("Devolução registrada!", "sucesso");
+    carregarEmprestimos(); carregarStats(); carregarAcervo();
+  } else {
+    mostrarAlerta(r.dados?.erro || "Erro.", "erro");
+  }
+}
+
+async function renovarEmprestimo(id) {
+  const r = await api("post", `/biblioteca/api/emprestimos/${id}/renovar`, { dias: 7 });
+  if (r.ok) {
+    mostrarAlerta("Prazo renovado por mais 7 dias.", "sucesso");
+    carregarEmprestimos(); carregarStats();
+  } else {
+    mostrarAlerta(r.dados?.erro || "Erro.", "erro");
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   UTILITÁRIOS
+══════════════════════════════════════════════════ */
+function formatarData(iso) {
+  if (!iso) return "—";
+  const [y,m,d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+</script>
+{% endblock %}

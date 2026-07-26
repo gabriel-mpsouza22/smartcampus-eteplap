@@ -1,0 +1,16 @@
+{
+  "lista": "prova",
+  "descricao": "Dia de Prova",
+  "horarios": [
+    { "id": "V01", "hora": "07:20", "descricao": "Entrada manhã",          "cancelado": false },
+    { "id": "V02", "hora": "09:30", "descricao": "Intervalo pós-prova",    "cancelado": false },
+    { "id": "V03", "hora": "09:50", "descricao": "Retorno",                "cancelado": false },
+    { "id": "V04", "hora": "11:30", "descricao": "Saída manhã / Entrada tarde", "cancelado": false },
+    { "id": "V05", "hora": "13:30", "descricao": "Intervalo pós-prova tarde","cancelado": false },
+    { "id": "V06", "hora": "13:50", "descricao": "Retorno tarde",          "cancelado": false },
+    { "id": "V07", "hora": "16:10", "descricao": "Saída tarde / Entrada noite","cancelado": false },
+    { "id": "V08", "hora": "18:50", "descricao": "Intervalo pós-prova noite","cancelado": false },
+    { "id": "V09", "hora": "19:10", "descricao": "Retorno noite",          "cancelado": false },
+    { "id": "V10", "hora": "21:00", "descricao": "Saída noite",            "cancelado": false }
+  ]
+}

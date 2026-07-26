@@ -1,0 +1,42 @@
+{
+  "tabela": "alunos_ocorrencias",
+  "colunas": [
+    {
+      "nome": "id",
+      "tipo": "INTEIRO",
+      "modificadores": [
+        "CHAVE_PRIMARIA",
+        "AUTO"
+      ]
+    },
+    {
+      "nome": "nome",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "serie",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "turma",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "curso",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    }
+  ],
+  "criada_em": "2026-06-29T20:25:15.036538"
+}

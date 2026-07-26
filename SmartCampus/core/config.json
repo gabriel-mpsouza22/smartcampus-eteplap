@@ -1,0 +1,10 @@
+{
+  "caminho_base": "C:\\SmartCampus",
+  "porta_api": 80,
+  "host_api": "0.0.0.0",
+  "encoding": "utf-8",
+  "versao": "1.0.0",
+  "nome_escola": "Escola Técnica Estadual Prof. Lucilo Ávila Pessoa",
+  "sigla_escola": "ETEPLAP",
+  "bairro_cidade": "Iputinga"
+}

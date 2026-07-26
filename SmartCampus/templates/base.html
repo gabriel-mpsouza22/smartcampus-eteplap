@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block titulo %}Smart Campus{% endblock %} — {{ sigla_escola }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block estilos %}{% endblock %}
+</head>
+<body>
+
+<div class="layout">
+
+  
+  <aside class="sidebar" role="navigation" aria-label="Menu principal">
+
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-nome">Smart Campus</div>
+      <div class="sidebar-logo-subtitulo">{{ sigla_escola }} · {{ bairro_cidade }}</div>
+    </div>
+
+    <div class="sidebar-usuario">
+      <div class="sidebar-avatar"
+           style="background: {{ cor_perfil }};"
+           aria-hidden="true">
+        {{ usuario.nome[0].upper() }}
+      </div>
+      <div class="sidebar-usuario-info">
+        <div class="sidebar-usuario-nome" title="{{ usuario.nome }}">{{ usuario.nome }}</div>
+        <div class="sidebar-usuario-perfil">{{ label_perfil }}</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-titulo">Módulos</div>
+      {% for modulo in modulos %}
+      <a href="{{ modulo.url }}"
+         title="{{ modulo.nome }}"
+         style="--cor-mod: {{ modulo.cor }};">
+        <span class="icone-modulo" aria-hidden="true">{{ modulo.icone }}</span>
+        {{ modulo.nome }}
+      </a>
+      {% endfor %}
+    </nav>
+
+    <div class="sidebar-rodape">
+      <a href="/logout" title="Sair do sistema">
+        <span aria-hidden="true">↩</span> Sair
+      </a>
+    </div>
+
+  </aside>
+
+  
+  <main class="conteudo">
+
+    <header class="topbar">
+      <div class="flex items-center gap-12">
+        
+        <button id="btn-menu-mobile" class="btn-menu-mobile"
+                aria-label="Abrir menu" type="button">☰</button>
+        <span class="topbar-titulo">{% block topbar_titulo %}{% endblock %}</span>
+      </div>
+
+      <div class="topbar-acoes">
+        <span class="mono text-sm text-mudo" id="relogio-topbar"
+              aria-live="polite" aria-label="Horário atual"></span>
+        {% block topbar_acoes %}{% endblock %}
+      </div>
+    </header>
+
+    <div class="pagina" role="main">
+      {% block conteudo %}{% endblock %}
+    </div>
+
+  </main>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

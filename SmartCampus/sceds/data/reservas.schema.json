@@ -1,0 +1,71 @@
+{
+  "tabela": "reservas",
+  "colunas": [
+    {
+      "nome": "id",
+      "tipo": "INTEIRO",
+      "modificadores": [
+        "CHAVE_PRIMARIA",
+        "AUTO"
+      ]
+    },
+    {
+      "nome": "professor_id",
+      "tipo": "INTEIRO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "recurso_tipo",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "recurso_nome",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "recurso_id",
+      "tipo": "TEXTO",
+      "modificadores": []
+    },
+    {
+      "nome": "data_reserva",
+      "tipo": "DATA",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "hora_inicio",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "hora_fim",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "devolvido",
+      "tipo": "BOOLEANO",
+      "modificadores": []
+    },
+    {
+      "nome": "data_devolucao",
+      "tipo": "DATA_HORA",
+      "modificadores": []
+    }
+  ],
+  "criada_em": "2026-06-29T20:25:15.002620"
+}

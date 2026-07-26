@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block titulo %}Usuários{% endblock %}
+{% block topbar_titulo %}👥 Gestão de Usuários{% endblock %}
+
+{% block estilos %}
+<style>
+.us-layout { display:grid; grid-template-columns:340px 1fr; gap:20px; align-items:start; }
+@media (max-width:860px) { .us-layout { grid-template-columns:1fr; } }
+
+.painel-novo-usuario {
+  background:var(--card); border:2px solid var(--azul-claro); border-radius:var(--raio-lg);
+  padding:20px; position:sticky; top:76px;
+}
+.painel-titulo { font-family:var(--fonte-display); font-weight:800; font-size:1rem; margin-bottom:4px; }
+.painel-sub { font-size:.78rem; color:var(--texto-mudo); margin-bottom:16px; }
+
+.campo-senha-linha { display:flex; gap:8px; }
+.campo-senha-linha input { flex:1; }
+.btn-gerar-senha {
+  padding:9px 12px; border:1.5px solid var(--borda-forte); border-radius:var(--raio);
+  background:var(--fundo); cursor:pointer; font-size:.8rem; white-space:nowrap; font-weight:600;
+  color:var(--texto-secundario);
+}
+.btn-gerar-senha:hover { border-color:var(--azul-medio); color:var(--azul-medio); }
+
+.badge-perfil {
+  font-size:.68rem; font-weight:700; padding:3px 10px; border-radius:999px;
+  background:var(--azul-claro); color:#1E40AF; text-transform:capitalize;
+}
+.badge-status { font-size:.68rem; font-weight:700; padding:3px 10px; border-radius:999px; }
+.badge-status.ativo   { background:var(--verde-claro); color:#166534; }
+.badge-status.inativo { background:var(--vermelho-claro); color:#991B1B; }
+
+.linha-acoes { display:flex; gap:6px; flex-wrap:wrap; }
+.linha-acoes button {
+  padding:5px 10px; font-size:.72rem; border-radius:6px; border:none; cursor:pointer; font-weight:700;
+}
+.btn-mini-secundario { background:var(--fundo); color:var(--texto-secundario); }
+.btn-mini-perigo     { background:var(--vermelho-claro); color:#991B1B; }
+.btn-mini-sucesso    { background:var(--verde-claro); color:#166534; }
+.btn-mini-azul       { background:var(--azul-claro); color:#1E40AF; }
+
+
+.overlay-senha { display:none; position:fixed; inset:0; background:rgba(15,33,58,.5); z-index:300; align-items:center; justify-content:center; padding:16px; }
+.overlay-senha.aberto { display:flex; }
+.modal-senha { background:var(--card); border-radius:16px; padding:28px; max-width:380px; width:100%; text-align:center; }
+.modal-senha-icone { font-size:2rem; margin-bottom:10px; }
+.modal-senha-valor {
+  font-family:var(--fonte-mono); font-size:1.3rem; font-weight:700; color:var(--azul-medio);
+  background:var(--azul-claro); border-radius:var(--raio); padding:12px; margin:14px 0; letter-spacing:.03em;
+}
+</style>
+{% endblock %}
+
+{% block conteudo %}
+<div class="us-layout">
+
+  
+  <div class="painel-novo-usuario">
+    <div class="painel-titulo">+ Novo usuário</div>
+    <div class="painel-sub">Cada senha deve ser única em todo o sistema.</div>
+
+    <div class="campo">
+      <label>Nome</label>
+      <input type="text" id="nu-nome" placeholder="Nome completo" oninput="atualizarSugestaoSenha()">
+    </div>
+    <div class="campo">
+      <label>Perfil</label>
+      <select id="nu-perfil">
+        {% for p in perfis %}
+        <option value="{{ p }}">{{ p|capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="campo">
+      <label>Senha</label>
+      <div class="campo-senha-linha">
+        <input type="text" id="nu-senha" placeholder="Mínimo 6 caracteres">
+        <button type="button" class="btn-gerar-senha" onclick="atualizarSugestaoSenha(true)">🎲 Gerar</button>
+      </div>
+    </div>
+
+    <button class="btn btn-primario w-full" id="btn-criar-usuario" onclick="criarUsuario()">
+      Cadastrar usuário
+    </button>
+  </div>
+
+  
+  <div>
+    <div class="tabela-wrapper card" style="padding:0;">
+      <table>
+        <thead>
+          <tr><th>Nome</th><th>Perfil</th><th>Status</th><th>Cadastrado em</th><th>Ações</th></tr>
+        </thead>
+        <tbody id="corpo-usuarios">
+          <tr><td colspan="5" style="text-align:center;padding:24px;color:var(--texto-mudo);">Carregando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+
+<div class="overlay-senha" id="overlay-senha" onclick="fecharModalSenhaFora(event)">
+  <div class="modal-senha">
+    <div class="modal-senha-icone">🔑</div>
+    <div style="font-weight:700;" id="ms-titulo"></div>
+    <div class="modal-senha-valor" id="ms-senha"></div>
+    <div class="text-xs text-mudo mb-16">Anote agora — esta senha não pode ser recuperada depois.</div>
+    <button class="btn btn-primario w-full" onclick="fecharModalSenha()">Já anotei</button>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let usuariosCache = [];
+let sugestaoAtual = "";
+
+document.addEventListener("DOMContentLoaded", carregarUsuarios);
+
+async function carregarUsuarios() {
+  const r = await api("get", "/admin/api/usuarios");
+  const corpo = document.getElementById("corpo-usuarios");
+  if (!r.ok) { corpo.innerHTML = `<tr><td colspan="5">Erro ao carregar.</td></tr>`; return; }
+
+  usuariosCache = r.dados;
+  if (r.dados.length === 0) {
+    corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--texto-mudo);">Nenhum usuário cadastrado.</td></tr>`;
+    return;
+  }
+
+  corpo.innerHTML = r.dados.map(u => `
+    <tr>
+      <td><b>${u.nome}</b></td>
+      <td><span class="badge-perfil">${u.perfil}</span></td>
+      <td><span class="badge-status ${u.ativo ? 'ativo':'inativo'}">${u.ativo ? 'Ativo':'Inativo'}</span></td>
+      <td class="text-sm text-mudo">${formatarData(u.criado_em)}</td>
+      <td>
+        <div class="linha-acoes">
+          <button class="btn-mini-azul" onclick="redefinirSenha(${u.id}, '${escapeAttr(u.nome)}')">Redefinir senha</button>
+          ${u.ativo
+            ? `<button class="btn-mini-perigo" onclick="desativarUsuario(${u.id})">Desativar</button>`
+            : `<button class="btn-mini-sucesso" onclick="reativarUsuario(${u.id})">Reativar</button>`}
+        </div>
+      </td>
+    </tr>`).join("");
+}
+
+function escapeAttr(s){ return (s||"").replace(/'/g,"&#39;"); }
+
+/* ── Sugestão de senha ao digitar o nome ───────────────── */
+let timerSugestao = null;
+async function atualizarSugestaoSenha(forcar=false) {
+  const nome = document.getElementById("nu-nome").value.trim();
+  const campoSenha = document.getElementById("nu-senha");
+  if (!forcar && campoSenha.value) return; // não sobrescreve o que o admin já digitou
+
+  clearTimeout(timerSugestao);
+  timerSugestao = setTimeout(async () => {
+    const r = await api("get", `/admin/api/usuarios/sugerir-senha?nome=${encodeURIComponent(nome)}`);
+    if (r.ok) campoSenha.value = r.dados.senha;
+  }, forcar ? 0 : 400);
+}
+
+/* ── Criar usuário ──────────────────────────────────────── */
+async function criarUsuario() {
+  const nome   = document.getElementById("nu-nome").value.trim();
+  const perfil = document.getElementById("nu-perfil").value;
+  const senha  = document.getElementById("nu-senha").value.trim();
+
+  if (!nome || !senha) { mostrarAlerta("Preencha nome e senha.", "aviso"); return; }
+
+  mostrarSpinner("btn-criar-usuario");
+  const r = await api("post", "/admin/api/usuarios", { nome, perfil, senha });
+  ocultarSpinner("btn-criar-usuario");
+
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao cadastrar.", "erro", 6000); return; }
+
+  mostrarSenhaModal(nome, senha, "Usuário cadastrado!");
+  document.getElementById("nu-nome").value = "";
+  document.getElementById("nu-senha").value = "";
+  carregarUsuarios();
+}
+
+/* ── Ativar/Desativar ───────────────────────────────────── */
+async function desativarUsuario(id) {
+  if (!confirm("Desativar este usuário? Ele não conseguirá mais fazer login.")) return;
+  const r = await api("post", `/admin/api/usuarios/${id}/desativar`);
+  if (r.ok) { mostrarAlerta("Usuário desativado.", "aviso"); carregarUsuarios(); }
+  else mostrarAlerta(r.dados?.erro || "Erro.", "erro");
+}
+
+async function reativarUsuario(id) {
+  const r = await api("post", `/admin/api/usuarios/${id}/reativar`);
+  if (r.ok) { mostrarAlerta("Usuário reativado.", "sucesso"); carregarUsuarios(); }
+  else mostrarAlerta(r.dados?.erro || "Erro.", "erro");
+}
+
+/* ── Redefinir senha ────────────────────────────────────── */
+async function redefinirSenha(id, nome) {
+  if (!confirm(`Gerar uma nova senha para ${nome}? A senha antiga deixará de funcionar.`)) return;
+  const r = await api("post", `/admin/api/usuarios/${id}/redefinir-senha`, {});
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro.", "erro"); return; }
+  mostrarSenhaModal(nome, r.dados.nova_senha, "Nova senha gerada!");
+}
+
+/* ── Modal de senha ─────────────────────────────────────── */
+function mostrarSenhaModal(nome, senha, titulo) {
+  document.getElementById("ms-titulo").textContent = `${titulo} (${nome})`;
+  document.getElementById("ms-senha").textContent = senha;
+  document.getElementById("overlay-senha").classList.add("aberto");
+}
+function fecharModalSenha() { document.getElementById("overlay-senha").classList.remove("aberto"); }
+function fecharModalSenhaFora(e) { if (e.target.id === "overlay-senha") fecharModalSenha(); }
+
+function formatarData(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("pt-BR");
+}
+</script>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block titulo %}Início{% endblock %}
+{% block topbar_titulo %}Painel Principal{% endblock %}
+
+{% block conteudo %}
+
+<div class="mb-24">
+  <h2 class="secao-titulo">Olá, {{ usuario.nome }} 👋</h2>
+  <p class="secao-subtitulo">
+    Selecione um módulo abaixo para começar.
+    {% if usuario.perfil == 'admin' %}
+    <span class="badge badge-azul">Administrador</span>
+    {% endif %}
+  </p>
+</div>
+
+<div class="grade-modulos">
+  {% for modulo in modulos %}
+  <a href="{{ modulo.url }}"
+     class="card-modulo"
+     style="--cor-modulo: {{ modulo.cor }};"
+     title="Acessar {{ modulo.nome }}">
+    <div class="card-modulo-icone" aria-hidden="true">{{ modulo.icone }}</div>
+    <div class="card-modulo-nome">{{ modulo.nome }}</div>
+  </a>
+  {% else %}
+  <div class="alerta alerta-aviso">
+    <span>⚠</span>
+    <span>Nenhum módulo disponível para o seu perfil. Contate o administrador.</span>
+  </div>
+  {% endfor %}
+</div>
+
+{% if usuario.perfil == 'admin' %}
+<div class="card mt-24">
+  <div class="card-titulo">Ações rápidas</div>
+  <div class="flex gap-12" style="flex-wrap: wrap;">
+    <a href="/admin/usuarios" class="btn btn-secundario">⚙️ Gerenciar usuários</a>
+    <a href="/admin/backup"   class="btn btn-secundario">💾 Fazer backup agora</a>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

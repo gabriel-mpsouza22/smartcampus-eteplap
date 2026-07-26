@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — Smart Campus {{ sigla_escola }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="login-pagina">
+  <div class="login-caixa">
+
+    <div class="login-cabecalho">
+      <div class="login-emblema" aria-hidden="true">🏫</div>
+      <h1 class="login-titulo">Smart Campus</h1>
+      <p class="login-subtitulo">
+        {{ nome_escola }}
+      </p>
+    </div>
+
+    {% if erro %}
+    <div class="alerta alerta-erro mb-16" role="alert">
+      <span>✗</span>
+      <span>{{ erro }}</span>
+    </div>
+    {% endif %}
+
+    <form class="login-form" method="POST" action="/login" autocomplete="off"
+          id="form-login">
+      <div class="campo">
+        <label for="senha">Sua senha de acesso</label>
+        <input
+          type="password"
+          id="senha"
+          name="senha"
+          placeholder="••••••••"
+          autofocus
+          required
+          autocomplete="current-password"
+          aria-describedby="dica-senha"
+        >
+        <span class="text-xs text-mudo" id="dica-senha">
+          O sistema identificará seu perfil automaticamente.
+        </span>
+      </div>
+
+      <button type="submit" class="btn btn-primario login-btn" id="btn-entrar">
+        Entrar
+      </button>
+    </form>
+
+    <p class="login-rodape">
+      Problema de acesso? Fale com o administrador do sistema.
+    </p>
+
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script>
+  
+  document.getElementById("form-login").addEventListener("submit", () => {
+    mostrarSpinner("btn-entrar");
+  });
+</script>
+</body>
+</html>

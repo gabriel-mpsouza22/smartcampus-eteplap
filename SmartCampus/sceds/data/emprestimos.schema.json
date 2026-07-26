@@ -1,0 +1,66 @@
+{
+  "tabela": "emprestimos",
+  "colunas": [
+    {
+      "nome": "id",
+      "tipo": "INTEIRO",
+      "modificadores": [
+        "CHAVE_PRIMARIA",
+        "AUTO"
+      ]
+    },
+    {
+      "nome": "livro_id",
+      "tipo": "INTEIRO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "aluno_nome",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "aluno_turma",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "aluno_curso",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "data_emprestimo",
+      "tipo": "DATA",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "data_prevista_devolucao",
+      "tipo": "DATA",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "devolvido",
+      "tipo": "BOOLEANO",
+      "modificadores": []
+    },
+    {
+      "nome": "data_devolucao",
+      "tipo": "DATA",
+      "modificadores": []
+    }
+  ],
+  "criada_em": "2026-06-29T20:25:15.012176"
+}

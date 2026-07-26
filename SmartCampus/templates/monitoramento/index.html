@@ -1,0 +1,405 @@
+{% extends "base.html" %}
+{% block titulo %}Monitoramento{% endblock %}
+{% block topbar_titulo %}📊 Monitoramento Geral{% endblock %}
+
+{% block topbar_acoes %}
+<button class="btn btn-secundario btn-sm" onclick="carregarTudo()">↻ Atualizar</button>
+{% endblock %}
+
+{% block estilos %}
+<style>
+.stats-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(155px,1fr)); gap: 12px; margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio-lg);
+  padding: 16px 18px; display: flex; align-items: center; gap: 12px;
+}
+.stat-icone { width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0; }
+.stat-numero { font-family: var(--fonte-display); font-weight:800; font-size:1.4rem; line-height:1; color:var(--texto); }
+.stat-label { font-size:.7rem; color:var(--texto-mudo); font-weight:600; margin-top:2px; }
+
+
+.periodo-barra {
+  display:flex; align-items:center; gap:10px; margin-bottom:20px; flex-wrap:wrap;
+}
+.periodo-label { font-size:.8rem; color:var(--texto-secundario); font-weight:600; }
+.periodo-btn {
+  padding:6px 16px; border-radius:999px; border:1.5px solid var(--borda-forte);
+  background:var(--card); font-size:.8rem; font-weight:700; cursor:pointer;
+  color:var(--texto-secundario); transition:all .15s;
+}
+.periodo-btn.ativo { border-color:var(--azul-medio); background:var(--azul-claro); color:var(--azul-medio); }
+
+.secoes-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+}
+@media (max-width: 900px) { .secoes-grid { grid-template-columns: 1fr; } }
+
+.painel-secao {
+  background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio-lg);
+  padding: 20px; margin-bottom: 20px;
+}
+.painel-secao-titulo {
+  font-family: var(--fonte-display); font-weight:800; font-size:.95rem; color:var(--texto);
+  margin-bottom: 2px; display:flex; align-items:center; gap:8px;
+}
+.painel-secao-sub { font-size:.76rem; color:var(--texto-mudo); margin-bottom:16px; }
+
+.full-width { grid-column: 1 / -1; }
+
+
+.barra-item { margin-bottom: 10px; }
+.barra-topo { display:flex; justify-content:space-between; font-size:.8rem; margin-bottom:3px; gap:8px; }
+.barra-nome { font-weight:600; color:var(--texto); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.barra-valor { font-weight:700; color:var(--texto-secundario); font-family:var(--fonte-mono); flex-shrink:0; }
+.barra-trilho { height:8px; background:var(--fundo); border-radius:4px; overflow:hidden; }
+.barra-fill { height:100%; border-radius:4px; transition:width .5s ease; }
+
+.estado-vazio { text-align:center; padding:30px; color:var(--texto-mudo); font-size:.85rem; }
+
+
+.grafico-linha-wrap { width:100%; height:210px; position:relative; }
+.grafico-linha-wrap svg { width:100%; height:100%; display:block; }
+.ponto-grafico { cursor:pointer; transition:r .1s; }
+.ponto-grafico:hover { r:6; }
+
+
+.grafico-tooltip {
+  position:fixed; pointer-events:none; z-index:1000;
+  background:#0F172A; color:#fff; padding:6px 11px; border-radius:7px;
+  font-size:.76rem; font-weight:600; white-space:nowrap;
+  box-shadow:0 6px 16px rgba(0,0,0,.25); display:none;
+  font-family:var(--fonte-corpo);
+}
+.grafico-tooltip .tt-sub { font-weight:400; opacity:.75; font-size:.7rem; }
+
+.legenda-mini { display:flex; gap:14px; font-size:.72rem; color:var(--texto-mudo); margin-top:8px; flex-wrap:wrap; }
+.legenda-mini span { display:flex; align-items:center; gap:5px; }
+.legenda-dot { width:8px;height:8px;border-radius:2px; }
+
+
+.iot-mini-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; }
+.iot-mini-card { background:var(--fundo); border-radius:var(--raio); padding:12px 14px; }
+.iot-mini-nome { font-size:.72rem; color:var(--texto-mudo); font-weight:600; }
+.iot-mini-valor { font-family:var(--fonte-mono); font-weight:700; font-size:1.1rem; margin-top:2px; }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+
+
+<div class="stats-grid">
+  <div class="stat-card"><div class="stat-icone" style="background:var(--azul-claro)">📅</div>
+    <div><div class="stat-numero" id="g-reservas">—</div><div class="stat-label">Reservas no mês</div></div></div>
+  <div class="stat-card"><div class="stat-icone" style="background:#EDE4FB">📚</div>
+    <div><div class="stat-numero" id="g-livros">—</div><div class="stat-label">Livros no acervo</div></div></div>
+  <div class="stat-card"><div class="stat-icone" style="background:var(--laranja-claro)">📖</div>
+    <div><div class="stat-numero" id="g-emprestimos">—</div><div class="stat-label">Empréstimos ativos</div></div></div>
+  <div class="stat-card"><div class="stat-icone" style="background:var(--vermelho-claro)">⏰</div>
+    <div><div class="stat-numero" id="g-atrasados" style="color:var(--vermelho)">—</div><div class="stat-label">Livros atrasados</div></div></div>
+  <div class="stat-card"><div class="stat-icone" style="background:#FFE4E1">📋</div>
+    <div><div class="stat-numero" id="g-ocorrencias">—</div><div class="stat-label">Ocorrências no mês</div></div></div>
+  <div class="stat-card"><div class="stat-icone" style="background:#FFEDD5">⚠️</div>
+    <div><div class="stat-numero" id="g-alerta" style="color:var(--vermelho)">—</div><div class="stat-label">Alunos em alerta</div></div></div>
+</div>
+
+
+<div class="periodo-barra">
+  <span class="periodo-label">Período dos rankings:</span>
+  <button class="periodo-btn ativo" data-periodo="mes" onclick="trocarPeriodo(this,'mes')">Este mês</button>
+  <button class="periodo-btn" data-periodo="tudo" onclick="trocarPeriodo(this,'tudo')">Todos os tempos</button>
+</div>
+
+<div class="secoes-grid">
+
+  
+  <div class="painel-secao">
+    <div class="painel-secao-titulo">📅 Recursos mais reservados</div>
+    <div class="painel-secao-sub" id="sub-recursos">Ranking de uso do módulo de agendamento</div>
+    <div id="rank-recursos"></div>
+  </div>
+
+  <div class="painel-secao">
+    <div class="painel-secao-titulo">👤 Professores que mais reservam</div>
+    <div class="painel-secao-sub" id="sub-professores">Top 5 no período selecionado</div>
+    <div id="rank-professores"></div>
+  </div>
+
+  
+  <div class="painel-secao">
+    <div class="painel-secao-titulo">📚 Livros mais emprestados</div>
+    <div class="painel-secao-sub" id="sub-livros">Top 6 no período selecionado</div>
+    <div id="rank-livros"></div>
+  </div>
+
+  <div class="painel-secao">
+    <div class="painel-secao-titulo">📈 Empréstimos por mês</div>
+    <div class="painel-secao-sub">Últimos 6 meses · passe o mouse sobre um ponto para ver o número</div>
+    <div class="grafico-linha-wrap" id="grafico-emprestimos-mes"></div>
+  </div>
+
+  
+  <div class="painel-secao">
+    <div class="painel-secao-titulo">📋 Ocorrências por tipo</div>
+    <div class="painel-secao-sub" id="sub-tipos">No período selecionado</div>
+    <div id="rank-tipos-ocorrencia"></div>
+  </div>
+
+  <div class="painel-secao">
+    <div class="painel-secao-titulo">🏫 Turmas com mais ocorrências</div>
+    <div class="painel-secao-sub" id="sub-turmas">Excluindo elogios · período selecionado</div>
+    <div id="rank-turmas"></div>
+  </div>
+
+  <div class="painel-secao full-width">
+    <div class="painel-secao-titulo">📈 Tendência de ocorrências</div>
+    <div class="painel-secao-sub">Últimos 6 meses (exceto elogios) · passe o mouse sobre um ponto para ver o número</div>
+    <div class="grafico-linha-wrap" id="grafico-ocorrencias-mes"></div>
+  </div>
+
+  
+  <div class="painel-secao full-width">
+    <div class="painel-secao-titulo">📡 Resumo IoT (últimos 30 dias)</div>
+    <div class="painel-secao-sub">
+      <span id="iot-resumo-texto">Carregando…</span> ·
+      <a href="/iot/painel">Ver painel completo →</a>
+    </div>
+    <div class="iot-mini-grid" id="iot-mini-grid"></div>
+  </div>
+
+</div>
+
+
+<div class="grafico-tooltip" id="grafico-tooltip"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PALETA = ["#2563EB","#E8751A","#16A34A","#8338EC","#DC2626","#CA8A04","#2A9D8F","#457B9D"];
+let periodoAtivo = "mes"; 
+
+document.addEventListener("DOMContentLoaded", () => {
+  carregarTudo();
+  inicializarTooltipGraficos();
+});
+
+async function carregarTudo() {
+  carregarGeral();
+  carregarAgendamento();
+  carregarBiblioteca();
+  carregarOcorrencias();
+  carregarIot();
+}
+
+
+function trocarPeriodo(btn, periodo) {
+  if (periodo === periodoAtivo) return;
+  document.querySelectorAll(".periodo-btn").forEach(b => b.classList.remove("ativo"));
+  btn.classList.add("ativo");
+  periodoAtivo = periodo;
+  carregarAgendamento();
+  carregarBiblioteca();
+  carregarOcorrencias();
+}
+
+function textoPeriodo() {
+  return periodoAtivo === "mes" ? "este mês" : "todos os tempos";
+}
+
+
+async function carregarGeral() {
+  const r = await api("get", "/monitoramento/api/geral");
+  if (!r.ok) return;
+  document.getElementById("g-reservas").textContent    = r.dados.reservas_ativas_mes;
+  document.getElementById("g-livros").textContent      = r.dados.livros_total;
+  document.getElementById("g-emprestimos").textContent = r.dados.emprestimos_ativos;
+  document.getElementById("g-atrasados").textContent   = r.dados.emprestimos_atrasados;
+  document.getElementById("g-ocorrencias").textContent = r.dados.ocorrencias_mes;
+  document.getElementById("g-alerta").textContent      = r.dados.alunos_em_alerta;
+}
+
+
+function renderRanking(elId, itens, chaveNome, chaveValor) {
+  const el = document.getElementById(elId);
+  if (!itens || itens.length === 0) {
+    el.innerHTML = `<div class="estado-vazio">Sem dados neste período.</div>`;
+    return;
+  }
+  const max = Math.max(...itens.map(i => i[chaveValor]));
+  el.innerHTML = itens.map((item, idx) => {
+    const pct = max > 0 ? (item[chaveValor] / max * 100) : 0;
+    const cor = PALETA[idx % PALETA.length];
+    return `
+      <div class="barra-item">
+        <div class="barra-topo">
+          <span class="barra-nome" title="${item[chaveNome]}">${item[chaveNome]}</span>
+          <span class="barra-valor">${item[chaveValor]}</span>
+        </div>
+        <div class="barra-trilho"><div class="barra-fill" style="width:${pct}%;background:${cor}"></div></div>
+      </div>`;
+  }).join("");
+}
+
+
+async function carregarAgendamento() {
+  const r = await api("get", `/monitoramento/api/agendamento?periodo=${periodoAtivo}`);
+  if (!r.ok) return;
+  renderRanking("rank-recursos", r.dados.top_recursos, "nome", "total");
+  renderRanking("rank-professores", r.dados.top_professores, "nome", "total");
+  document.getElementById("sub-recursos").textContent = `Ranking de uso — ${textoPeriodo()}`;
+  document.getElementById("sub-professores").textContent = `Top 5 — ${textoPeriodo()}`;
+}
+
+
+async function carregarBiblioteca() {
+  const r = await api("get", `/monitoramento/api/biblioteca?periodo=${periodoAtivo}`);
+  if (!r.ok) return;
+
+  const livrosFormatados = r.dados.top_livros.map(l => ({ nome: `${l.nome}`, total: l.total }));
+  renderRanking("rank-livros", livrosFormatados, "nome", "total");
+  document.getElementById("sub-livros").textContent = `Top 6 — ${textoPeriodo()}`;
+
+  desenharLinha("grafico-emprestimos-mes", r.dados.serie_mensal.labels, [
+    { nome: "Empréstimos", cor: "#E8751A", valores: r.dados.serie_mensal.valores }
+  ]);
+}
+
+
+async function carregarOcorrencias() {
+  const r = await api("get", `/monitoramento/api/ocorrencias?periodo=${periodoAtivo}`);
+  if (!r.ok) return;
+
+  renderRanking("rank-tipos-ocorrencia", r.dados.por_tipo, "nome", "total");
+  renderRanking("rank-turmas", r.dados.top_turmas, "nome", "total");
+  document.getElementById("sub-tipos").textContent = `Distribuição — ${textoPeriodo()}`;
+  document.getElementById("sub-turmas").textContent = `Excluindo elogios — ${textoPeriodo()}`;
+
+  desenharLinha("grafico-ocorrencias-mes", r.dados.serie_mensal.labels, [
+    { nome: "Ocorrências", cor: "#DC2626", valores: r.dados.serie_mensal.valores }
+  ]);
+}
+
+
+async function carregarIot() {
+  const r = await api("get", "/monitoramento/api/iot");
+  if (!r.ok) return;
+
+  document.getElementById("iot-resumo-texto").textContent =
+    `${r.dados.total_eventos_portao_30d} eventos de portão · ${r.dados.total_eventos_ac_30d} eventos de A/C · ${r.dados.total_leituras_agua_30d} leituras de água`;
+
+  const grid = document.getElementById("iot-mini-grid");
+  if (r.dados.agua_ultimas.length === 0) {
+    grid.innerHTML = `<div class="estado-vazio">Nenhuma leitura de água nos últimos 30 dias.</div>`;
+    return;
+  }
+  grid.innerHTML = r.dados.agua_ultimas.map(a => `
+    <div class="iot-mini-card">
+      <div class="iot-mini-nome">${a.sensor_id.replace('_',' ')}</div>
+      <div class="iot-mini-valor">${a.valor}%</div>
+    </div>`).join("");
+}
+
+
+let _ultimosGraficosLinha = {}; 
+
+function desenharLinha(elId, labels, series) {
+  _ultimosGraficosLinha[elId] = { labels, series };
+
+  const el = document.getElementById(elId);
+  const h = 210, padTop = 28, padBottom = 32, padLeft = 34, padRight = 12;
+  
+  
+  const w = Math.max(el.clientWidth || 0, 300);
+
+  const todosValores = series.flatMap(s => s.valores);
+  const max = Math.max(1, ...todosValores);
+  
+  const maxEixo = arredondarTeto(max);
+
+  const areaW = w - padLeft - padRight;
+  const areaH = h - padTop - padBottom;
+
+  const escX = i => padLeft + (i / (labels.length - 1 || 1)) * areaW;
+  const escY = v => padTop + areaH - (v / maxEixo) * areaH;
+
+  let svg = `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">`;
+
+  
+  const passos = 4;
+  for (let i = 0; i <= passos; i++) {
+    const valorEixo = Math.round(maxEixo * (1 - i / passos));
+    const y = padTop + (i / passos) * areaH;
+    svg += `<line x1="${padLeft}" y1="${y.toFixed(1)}" x2="${w-padRight}" y2="${y.toFixed(1)}" stroke="var(--borda)" stroke-width="1"/>`;
+    svg += `<text x="${padLeft-8}" y="${(y+3).toFixed(1)}" font-size="9.5" text-anchor="end" fill="var(--texto-mudo)">${valorEixo}</text>`;
+  }
+
+  series.forEach(serie => {
+    const pontos = serie.valores.map((v,i) => `${escX(i).toFixed(1)},${escY(v).toFixed(1)}`).join(" ");
+    svg += `<polyline points="${pontos}" fill="none" stroke="${serie.cor}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+
+    serie.valores.forEach((v,i) => {
+      const cx = escX(i).toFixed(1), cy = escY(v).toFixed(1);
+      
+      svg += `<circle cx="${cx}" cy="${cy}" r="8" fill="transparent" class="ponto-grafico"
+                data-valor="${v}" data-label="${labels[i]}" data-serie="${serie.nome}"/>`;
+      svg += `<circle cx="${cx}" cy="${cy}" r="3.5" fill="${serie.cor}" stroke="var(--card)" stroke-width="1.5" style="pointer-events:none;"/>`;
+    });
+  });
+
+  
+  labels.forEach((label,i) => {
+    svg += `<text x="${escX(i).toFixed(1)}" y="${h-8}" font-size="9.5" text-anchor="middle" fill="var(--texto-mudo)">${label}</text>`;
+  });
+
+  svg += `</svg>`;
+  el.innerHTML = svg;
+}
+
+function arredondarTeto(valor) {
+  if (valor <= 5) return 5;
+  if (valor <= 10) return 10;
+  const grandeza = Math.pow(10, Math.floor(Math.log10(valor)));
+  return Math.ceil(valor / grandeza) * grandeza;
+}
+
+
+function inicializarTooltipGraficos() {
+  const tooltip = document.getElementById("grafico-tooltip");
+
+  document.addEventListener("mouseover", (e) => {
+    const alvo = e.target.closest(".ponto-grafico");
+    if (!alvo) return;
+    const valor = alvo.dataset.valor;
+    const label = alvo.dataset.label;
+    const serieNome = alvo.dataset.serie;
+    tooltip.innerHTML = `${serieNome}: <b>${valor}</b><div class="tt-sub">${label}</div>`;
+    tooltip.style.display = "block";
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (tooltip.style.display !== "block") return;
+    tooltip.style.left = (e.clientX + 14) + "px";
+    tooltip.style.top  = (e.clientY - 12) + "px";
+  });
+
+  document.addEventListener("mouseout", (e) => {
+    if (e.target.closest(".ponto-grafico")) {
+      tooltip.style.display = "none";
+    }
+  });
+}
+
+
+let _timerResizeGraficos = null;
+window.addEventListener("resize", () => {
+  clearTimeout(_timerResizeGraficos);
+  _timerResizeGraficos = setTimeout(() => {
+    for (const [elId, dados] of Object.entries(_ultimosGraficosLinha)) {
+      desenharLinha(elId, dados.labels, dados.series);
+    }
+  }, 200);
+});
+</script>
+{% endblock %}

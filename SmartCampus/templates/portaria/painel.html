@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block titulo %}Portaria{% endblock %}
+{% block topbar_titulo %}🚪 Painel da Portaria{% endblock %}
+
+{% block estilos %}
+<style>
+.sp-layout {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 20px;
+  align-items: start;
+}
+
+.proximo-visitante {
+  background: var(--azul-escuro);
+  color: #fff;
+  border-radius: var(--raio-lg);
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.proximo-icone { font-size: 2rem; }
+.proximo-label { font-size: .72rem; opacity: .65; text-transform: uppercase; letter-spacing: .05em; }
+.proximo-nome { font-family: var(--fonte-display); font-weight: 800; font-size: 1.15rem; margin-top: 2px;}
+.proximo-detalhe { font-size: .82rem; opacity: .85; margin-top: 2px; }
+.proximo-hora {
+  margin-left: auto;
+  font-family: var(--fonte-mono);
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.lista-compromissos { display:flex; flex-direction:column; gap:8px; }
+.compromisso-card {
+  background: var(--card);
+  border: 1px solid var(--borda);
+  border-left: 4px solid var(--laranja);
+  border-radius: var(--raio);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: opacity .2s;
+}
+.compromisso-card.passou { opacity: .5; border-left-color: var(--texto-mudo); }
+.compromisso-hora {
+  font-family: var(--fonte-mono);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--laranja);
+  min-width: 52px;
+}
+.compromisso-info { flex: 1; }
+.compromisso-resp { font-weight: 700; font-size: .88rem; }
+.compromisso-motivo { font-size: .78rem; color: var(--texto-secundario); }
+.estado-vazio { text-align:center; padding:36px; color:var(--texto-mudo); }
+
+
+.chat-box {
+  background: var(--card);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-lg);
+  display: flex;
+  flex-direction: column;
+  height: 480px;
+  overflow: hidden;
+}
+.chat-cabecalho {
+  padding: 12px 16px; border-bottom: 1px solid var(--borda);
+  font-weight: 700; font-size: .85rem;
+  display: flex; align-items: center; gap: 8px; background: var(--fundo);
+}
+.chat-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--verde); }
+.chat-mensagens { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.msg { max-width: 82%; padding: 7px 12px; border-radius: 12px; font-size: .82rem; line-height: 1.4; }
+.msg-minha { align-self: flex-end; background: var(--laranja); color: #fff; border-bottom-right-radius: 3px; }
+.msg-outro { align-self: flex-start; background: var(--fundo); color: var(--texto); border-bottom-left-radius: 3px; }
+.msg-remetente { font-size: .68rem; opacity: .75; font-weight: 700; margin-bottom: 2px; }
+.msg-hora { font-size: .62rem; opacity: .6; margin-top: 3px; }
+.chat-input-linha { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--borda); }
+.chat-input-linha input { flex: 1; padding: 9px 12px; border: 1px solid var(--borda-forte); border-radius: 999px; font-size: .84rem; outline: none; }
+.chat-input-linha input:focus { border-color: var(--laranja); }
+.chat-input-linha button { width: 38px; height: 38px; border-radius: 50%; border: none; background: var(--laranja); color: #fff; cursor: pointer; font-size: 1rem; flex-shrink: 0; }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+<div class="sp-layout">
+
+  <div>
+    <div id="proximo-container"></div>
+
+    <div class="flex justify-between items-center mb-16">
+      <span class="secao-titulo" style="font-size:1rem;margin:0;">Agenda de hoje</span>
+      <button class="btn btn-secundario btn-sm" onclick="carregarAgenda()">↻ Atualizar</button>
+    </div>
+    <div class="lista-compromissos" id="lista-compromissos">
+      <div class="estado-vazio">Carregando agenda…</div>
+    </div>
+  </div>
+
+  <div class="chat-box">
+    <div class="chat-cabecalho"><span class="chat-status-dot"></span> Chat com a Secretaria</div>
+    <div class="chat-mensagens" id="chat-mensagens"></div>
+    <div class="chat-input-linha">
+      <input type="text" id="chat-input" placeholder="Digite uma mensagem…" maxlength="500"
+             onkeydown="if(event.key==='Enter') enviarMensagem();">
+      <button onclick="enviarMensagem()" title="Enviar">➤</button>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let ultimoIdMsg = 0;
+const HOJE = "{{ hoje }}";
+
+document.addEventListener("DOMContentLoaded", () => {
+  carregarAgenda();
+  carregarChatInicial();
+  setInterval(pollChat, 4000);
+  setInterval(carregarAgenda, 30000);
+});
+
+async function carregarAgenda() {
+  const r = await api("get", `/api/compromissos?data=${HOJE}`);
+  const lista = document.getElementById("lista-compromissos");
+  const proxContainer = document.getElementById("proximo-container");
+
+  if (!r.ok) { lista.innerHTML = `<div class="estado-vazio">Erro ao carregar.</div>`; return; }
+
+  if (r.dados.length === 0) {
+    lista.innerHTML = `<div class="estado-vazio">📭 Nenhum compromisso agendado para hoje.</div>`;
+    proxContainer.innerHTML = "";
+    return;
+  }
+
+  const agora = new Date().toTimeString().slice(0,5);
+  const proximo = r.dados.find(c => c.hora >= agora);
+
+  proxContainer.innerHTML = proximo ? `
+    <div class="proximo-visitante">
+      <div class="proximo-icone">👤</div>
+      <div>
+        <div class="proximo-label">Próximo visitante</div>
+        <div class="proximo-nome">${proximo.responsavel}</div>
+        <div class="proximo-detalhe">${proximo.motivo}</div>
+      </div>
+      <div class="proximo-hora">${proximo.hora}</div>
+    </div>` : "";
+
+  lista.innerHTML = r.dados.map(c => `
+    <div class="compromisso-card ${c.hora < agora ? 'passou' : ''}">
+      <div class="compromisso-hora">${c.hora}</div>
+      <div class="compromisso-info">
+        <div class="compromisso-resp">${c.responsavel}</div>
+        <div class="compromisso-motivo">${c.motivo}</div>
+      </div>
+    </div>`).join("");
+}
+
+async function carregarChatInicial() {
+  const r = await api("get", "/api/chat/mensagens");
+  if (!r.ok) return;
+  renderizarMensagens(r.dados, true);
+  if (r.dados.length) ultimoIdMsg = r.dados[r.dados.length-1].id;
+}
+
+async function pollChat() {
+  const r = await api("get", `/api/chat/mensagens?desde_id=${ultimoIdMsg}`);
+  if (!r.ok || r.dados.length === 0) return;
+  renderizarMensagens(r.dados, false);
+  ultimoIdMsg = r.dados[r.dados.length-1].id;
+}
+
+function renderizarMensagens(msgs, substituir) {
+  const box = document.getElementById("chat-mensagens");
+  const meuNome = "{{ usuario.nome }}";
+  const html = msgs.map(m => {
+    const minha = m.remetente === meuNome;
+    const hora = new Date(m.data_hora).toLocaleTimeString("pt-BR",{hour:'2-digit',minute:'2-digit'});
+    return `<div class="msg ${minha?'msg-minha':'msg-outro'}">
+      ${!minha ? `<div class="msg-remetente">${m.remetente}</div>` : ""}
+      ${m.texto}
+      <div class="msg-hora">${hora}</div>
+    </div>`;
+  }).join("");
+  box.innerHTML = substituir ? html : box.innerHTML + html;
+  box.scrollTop = box.scrollHeight;
+}
+
+async function enviarMensagem() {
+  const input = document.getElementById("chat-input");
+  const texto = input.value.trim();
+  if (!texto) return;
+  input.value = "";
+  const r = await api("post", "/api/chat/enviar", { texto });
+  if (r.ok) { await pollChat(); }
+  else mostrarAlerta(r.dados?.erro || "Erro ao enviar.", "erro");
+}
+</script>
+{% endblock %}

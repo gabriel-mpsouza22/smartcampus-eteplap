@@ -1,0 +1,13 @@
+{
+  "recursos": [
+    { "id": "lab1",       "nome": "Laboratório de Informática 1", "tipo": "laboratorio", "icone": "🖥️" },
+    { "id": "lab2",       "nome": "Laboratório de Informática 2", "tipo": "laboratorio", "icone": "🖥️" },
+    { "id": "sala_video", "nome": "Sala de Vídeo",                "tipo": "sala",        "icone": "📽️" },
+    { "id": "quadra",     "nome": "Quadra Poliesportiva",         "tipo": "espaco",      "icone": "⚽" },
+    { "id": "ds01",       "nome": "Datashow 01",                  "tipo": "equipamento", "icone": "📊" },
+    { "id": "ds02",       "nome": "Datashow 02",                  "tipo": "equipamento", "icone": "📊" },
+    { "id": "ds03",       "nome": "Datashow 03",                  "tipo": "equipamento", "icone": "📊" },
+    { "id": "ds04",       "nome": "Datashow 04",                  "tipo": "equipamento", "icone": "📊" },
+    { "id": "ds05",       "nome": "Datashow 05",                  "tipo": "equipamento", "icone": "📊" }
+  ]
+}

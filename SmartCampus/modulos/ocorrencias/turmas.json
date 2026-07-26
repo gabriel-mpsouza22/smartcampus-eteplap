@@ -1,0 +1,19 @@
+{
+  "observacao": "Lista fixa de turmas da escola. Editar aqui atualiza as opções disponíveis no cadastro de alunos do módulo de Ocorrências.",
+  "turmas": [
+    { "turma": "1A Redes", "serie": "1º Ano", "curso": "Redes" },
+    { "turma": "1B Redes", "serie": "1º Ano", "curso": "Redes" },
+    { "turma": "1A Adm",   "serie": "1º Ano", "curso": "Administração" },
+    { "turma": "1B Adm",   "serie": "1º Ano", "curso": "Administração" },
+
+    { "turma": "2A Redes", "serie": "2º Ano", "curso": "Redes" },
+    { "turma": "2B Redes", "serie": "2º Ano", "curso": "Redes" },
+    { "turma": "2A Adm",   "serie": "2º Ano", "curso": "Administração" },
+    { "turma": "2B Adm",   "serie": "2º Ano", "curso": "Administração" },
+
+    { "turma": "3A Redes", "serie": "3º Ano", "curso": "Redes" },
+    { "turma": "3B Redes", "serie": "3º Ano", "curso": "Redes" },
+    { "turma": "3A Adm",   "serie": "3º Ano", "curso": "Administração" },
+    { "turma": "3B Adm",   "serie": "3º Ano", "curso": "Administração" }
+  ]
+}

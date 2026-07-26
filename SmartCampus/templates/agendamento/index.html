@@ -1,0 +1,1084 @@
+{% extends "base.html" %}
+{% block titulo %}Agendamento{% endblock %}
+{% block topbar_titulo %}📅 Agendamento de Recursos{% endblock %}
+
+{% block topbar_acoes %}
+<button class="btn btn-primario btn-sm" onclick="abrirModal()">+ Nova reserva</button>
+{% endblock %}
+
+{% block estilos %}
+<style>
+
+:root {
+  --h-inicio: 7;
+  --h-fim: 21;
+  --cor-minha:   #2563EB;
+  --cor-outro:   #E76F51;
+  --cor-minha-bg: #DBEAFE;
+  --cor-outro-bg: #FEE8E1;
+}
+
+
+.barra-data {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.btn-dia {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--borda-forte);
+  background: var(--card);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+  color: var(--texto-secundario);
+}
+.btn-dia:hover { background: var(--azul-claro); border-color: var(--azul-medio); color: var(--azul-medio); }
+
+.input-data {
+  padding: 6px 12px;
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio);
+  font-family: var(--fonte-mono);
+  font-size: .9rem;
+  color: var(--texto);
+  background: var(--card);
+  cursor: pointer;
+  outline: none;
+  transition: border-color .15s;
+}
+.input-data:focus { border-color: var(--azul-medio); }
+
+.label-data {
+  font-family: var(--fonte-display);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--texto);
+  min-width: 160px;
+}
+
+.chips-stat {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: .75rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.chip-azul   { background: var(--azul-claro);    color: #1E40AF; }
+.chip-verde  { background: var(--verde-claro);   color: #166534; }
+.chip-laranja{ background: var(--laranja-claro); color: #92400E; }
+
+
+.agend-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+
+.painel-recursos {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: sticky;
+  top: 76px;
+}
+
+.card-recurso {
+  background: var(--card);
+  border: 2px solid var(--borda);
+  border-radius: var(--raio-lg);
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all .2s;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  user-select: none;
+}
+
+.card-recurso:hover {
+  border-color: var(--azul-medio);
+  box-shadow: var(--sombra-md);
+}
+
+.card-recurso.selecionado {
+  border-color: var(--azul-medio);
+  background: var(--azul-claro);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+}
+
+.recurso-icone {
+  font-size: 1.4rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--fundo);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.recurso-info { flex: 1; min-width: 0; }
+
+.recurso-nome {
+  font-weight: 700;
+  font-size: .82rem;
+  color: var(--texto);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recurso-status {
+  font-size: .72rem;
+  margin-top: 2px;
+  font-weight: 600;
+}
+.recurso-status.livre    { color: var(--verde); }
+.recurso-status.ocupado  { color: var(--vermelho); }
+.recurso-status.parcial  { color: var(--amarelo); }
+
+
+.mini-barra {
+  height: 3px;
+  background: var(--borda);
+  border-radius: 2px;
+  margin-top: 5px;
+  overflow: hidden;
+}
+.mini-barra-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--verde);
+  transition: width .4s ease;
+}
+.mini-barra-fill.alta { background: var(--vermelho); }
+.mini-barra-fill.media{ background: var(--amarelo); }
+
+
+.btn-todos {
+  background: var(--card);
+  border: 2px solid var(--borda);
+  border-radius: var(--raio-lg);
+  padding: 10px 16px;
+  cursor: pointer;
+  font-family: var(--fonte-corpo);
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--texto-secundario);
+  transition: all .2s;
+  text-align: left;
+  width: 100%;
+}
+.btn-todos:hover   { border-color: var(--azul-medio); color: var(--azul-medio); }
+.btn-todos.ativo   { border-color: var(--azul-medio); background: var(--azul-claro); color: var(--azul-medio); }
+
+
+.painel-timeline {
+  background: var(--card);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-lg);
+  overflow: hidden;
+  box-shadow: var(--sombra);
+}
+
+.timeline-cabecalho {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--borda);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.timeline-titulo {
+  font-family: var(--fonte-display);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--texto);
+}
+
+.timeline-legenda {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: .72rem;
+  color: var(--texto-secundario);
+}
+
+.legenda-dot {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+}
+.legenda-dot::before {
+  content: '';
+  width: 10px; height: 10px;
+  border-radius: 3px;
+}
+.legenda-dot.minha::before { background: var(--cor-minha); }
+.legenda-dot.outro::before { background: var(--cor-outro); }
+
+
+.regua-horas {
+  display: flex;
+  border-bottom: 1px solid var(--borda);
+  padding-left: 140px;
+  background: var(--fundo);
+}
+
+.tick-hora {
+  flex: 1;
+  text-align: center;
+  font-family: var(--fonte-mono);
+  font-size: .65rem;
+  color: var(--texto-mudo);
+  padding: 6px 0;
+  border-left: 1px solid var(--borda);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+
+.linha-recurso {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--borda);
+  min-height: 52px;
+  transition: background .1s;
+}
+.linha-recurso:last-child { border-bottom: none; }
+.linha-recurso:hover { background: #FAFBFC; }
+
+.linha-nome {
+  width: 140px;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--texto);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-right: 1px solid var(--borda);
+  background: var(--fundo);
+}
+
+.linha-slots {
+  flex: 1;
+  position: relative;
+  height: 52px;
+  cursor: pointer;
+}
+
+
+.linha-slots::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0,
+    transparent calc(100%/14 - 1px),
+    var(--borda) calc(100%/14 - 1px),
+    var(--borda) calc(100%/14)
+  );
+  opacity: .4;
+  pointer-events: none;
+}
+
+
+.linha-slots .agora-line {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 2px;
+  background: var(--laranja);
+  z-index: 3;
+  pointer-events: none;
+}
+.linha-slots .agora-line::before {
+  content: '';
+  position: absolute;
+  top: -3px; left: -4px;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--laranja);
+}
+
+
+.bloco {
+  position: absolute;
+  top: 6px;
+  height: calc(100% - 12px);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  font-size: .72rem;
+  font-weight: 700;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  z-index: 2;
+  transition: filter .15s, transform .15s;
+  border: none;
+  outline: none;
+}
+.bloco:hover { filter: brightness(.92); transform: scaleY(1.04); }
+.bloco:focus { outline: 2px solid var(--azul-medio); outline-offset: 1px; }
+
+.bloco.minha {
+  background: var(--cor-minha-bg);
+  color: var(--cor-minha);
+  border-left: 3px solid var(--cor-minha);
+}
+.bloco.outro {
+  background: var(--cor-outro-bg);
+  color: #9D4124;
+  border-left: 3px solid var(--cor-outro);
+}
+
+
+.estado-vazio {
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--texto-mudo);
+}
+.estado-vazio-icone { font-size: 2.5rem; margin-bottom: 12px; }
+.estado-vazio-txt   { font-size: .9rem; }
+
+
+.overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(15,33,58,.5);
+  z-index: 300;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  backdrop-filter: blur(2px);
+}
+.overlay.aberto { display: flex; }
+
+.modal-box {
+  background: var(--card);
+  border-radius: 16px;
+  box-shadow: 0 24px 48px rgba(0,0,0,.2);
+  width: 100%;
+  max-width: 480px;
+  overflow: hidden;
+  animation: slideUp .22s ease;
+}
+
+@keyframes slideUp {
+  from { opacity:0; transform: translateY(20px); }
+  to   { opacity:1; transform: translateY(0); }
+}
+
+.modal-header {
+  padding: 20px 24px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-header-titulo {
+  font-family: var(--fonte-display);
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--texto);
+}
+
+.modal-fechar {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: var(--fundo);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--texto-mudo);
+  transition: all .15s;
+}
+.modal-fechar:hover { background: var(--borda); color: var(--texto); }
+
+.modal-body  { padding: 20px 24px; }
+.modal-footer{ padding: 0 24px 24px; display: flex; gap: 10px; }
+.modal-footer .btn { flex: 1; justify-content: center; padding: 11px; }
+
+
+.grid-recursos-modal {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.item-recurso-modal {
+  border: 2px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 10px 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .15s;
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--texto-secundario);
+  background: var(--fundo);
+  user-select: none;
+}
+.item-recurso-modal:hover   { border-color: var(--azul-medio); color: var(--azul-medio); background: var(--azul-claro); }
+.item-recurso-modal.escolhido{ border-color: var(--azul-medio); color: var(--azul-medio); background: var(--azul-claro); }
+.item-recurso-modal span     { display: block; font-size: 1.3rem; margin-bottom: 4px; }
+
+
+.disp-badge {
+  padding: 8px 14px;
+  border-radius: var(--raio);
+  font-size: .8rem;
+  font-weight: 600;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.disp-badge.livre   { display: flex; background: var(--verde-claro);    color: #166534; }
+.disp-badge.ocupado { display: flex; background: var(--vermelho-claro);  color: #991B1B; }
+
+
+.detalhe-panel {
+  position: fixed;
+  bottom: 28px; right: 28px;
+  background: var(--card);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-lg);
+  padding: 18px 20px;
+  width: 270px;
+  z-index: 200;
+  display: none;
+  animation: fadeIn .15s ease;
+}
+.detalhe-panel.aberto { display: block; }
+
+.detalhe-topo {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.detalhe-recurso {
+  font-family: var(--fonte-display);
+  font-weight: 700;
+  font-size: .9rem;
+  color: var(--texto);
+}
+.detalhe-fechar {
+  background: none; border: none; cursor: pointer;
+  color: var(--texto-mudo); font-size: .9rem; padding: 2px;
+}
+.detalhe-item {
+  font-size: .8rem;
+  color: var(--texto-secundario);
+  margin-bottom: 5px;
+  display: flex; align-items: center; gap: 7px;
+}
+.detalhe-item b { color: var(--texto); }
+
+
+@media (max-width: 860px) {
+  .agend-layout {
+    grid-template-columns: 1fr;
+  }
+  .painel-recursos {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+  .card-recurso { flex-direction: column; text-align: center; gap: 6px; }
+  .recurso-icone { margin: 0 auto; }
+  .chips-stat { margin-left: 0; }
+  .linha-nome { width: 100px; font-size: .7rem; }
+  .regua-horas { padding-left: 100px; }
+}
+</style>
+{% endblock %}
+
+{% block conteudo %}
+
+
+<div class="barra-data">
+  <button class="btn-dia" onclick="moverDia(-1)" title="Dia anterior">‹</button>
+  <input type="date" class="input-data" id="inp-data" value="{{ hoje }}"
+         onchange="onDataChange()">
+  <button class="btn-dia" onclick="moverDia(1)"  title="Próximo dia">›</button>
+  <span class="label-data" id="label-data"></span>
+  <button class="btn btn-secundario btn-sm" onclick="irHoje()" id="btn-hoje" style="display:none">
+    Hoje
+  </button>
+
+  <div class="chips-stat">
+    <div class="chip chip-azul">
+      <span>📦</span>
+      <span id="chip-total">{{ recursos|length }} recursos</span>
+    </div>
+    <div class="chip chip-verde">
+      <span>✓</span>
+      <span id="chip-livres">— livres</span>
+    </div>
+    <div class="chip chip-laranja">
+      <span>📋</span>
+      <span id="chip-reservas">— reservas</span>
+    </div>
+  </div>
+</div>
+
+
+<div class="agend-layout">
+
+  
+  <div class="painel-recursos" id="painel-recursos">
+    <button class="btn-todos ativo" id="btn-todos" onclick="selecionarRecurso(null)">
+      🗓 Todos os recursos
+    </button>
+    {% for r in recursos %}
+    <div class="card-recurso" id="card-{{ r.id }}"
+         onclick="selecionarRecurso('{{ r.id }}', '{{ r.nome }}')"
+         role="button" tabindex="0"
+         onkeydown="if(event.key==='Enter')selecionarRecurso('{{ r.id }}','{{ r.nome }}')">
+      <div class="recurso-icone">{{ r.icone }}</div>
+      <div class="recurso-info">
+        <div class="recurso-nome">{{ r.nome }}</div>
+        <div class="recurso-status" id="status-{{ r.id }}">—</div>
+        <div class="mini-barra">
+          <div class="mini-barra-fill" id="barra-{{ r.id }}" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  
+  <div class="painel-timeline" id="painel-timeline">
+
+    <div class="timeline-cabecalho">
+      <div class="timeline-titulo" id="timeline-titulo">Todos os recursos</div>
+      <div class="timeline-legenda">
+        <div class="legenda-dot minha">Minhas</div>
+        <div class="legenda-dot outro">De outros</div>
+        <span style="color:var(--texto-mudo);font-size:.7rem;">
+          Clique em espaço vazio para reservar
+        </span>
+      </div>
+    </div>
+
+    
+    <div class="regua-horas" id="regua-horas">
+      
+    </div>
+
+    
+    <div id="linhas-recursos">
+      <div class="estado-vazio">
+        <div class="estado-vazio-icone">⏳</div>
+        <div class="estado-vazio-txt">Carregando…</div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+
+<div class="detalhe-panel" id="detalhe">
+  <div class="detalhe-topo">
+    <div class="detalhe-recurso" id="det-nome"></div>
+    <button class="detalhe-fechar" onclick="fecharDetalhe()">✕</button>
+  </div>
+  <div class="detalhe-item">👤 <span id="det-prof"></span></div>
+  <div class="detalhe-item">🕐 <span id="det-hora"></span></div>
+  <div class="detalhe-item">📅 <span id="det-data"></span></div>
+  <div id="det-acoes" class="mt-8"></div>
+</div>
+
+
+<div class="overlay" id="overlay" onclick="fecharOverlay(event)">
+  <div class="modal-box">
+
+    <div class="modal-header">
+      <div class="modal-header-titulo">Nova reserva</div>
+      <button class="modal-fechar" onclick="fecharModal()">✕</button>
+    </div>
+
+    <div class="modal-body">
+
+      
+      <div class="campo" style="margin-bottom:12px;">
+        <label>Recurso</label>
+        <div class="grid-recursos-modal" id="grid-recursos-modal">
+          {% for r in recursos %}
+          <div class="item-recurso-modal" data-id="{{ r.id }}"
+               onclick="escolherRecurso(this, '{{ r.id }}')"
+               role="button" tabindex="0">
+            <span>{{ r.icone }}</span>{{ r.nome }}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      
+      <div class="campo">
+        <label>Data</label>
+        <input type="date" id="f-data" value="{{ hoje }}" min="{{ hoje }}"
+               onchange="verificarDisp()">
+      </div>
+
+      
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="campo">
+          <label>Início</label>
+          <input type="time" id="f-inicio" onchange="verificarDisp()">
+        </div>
+        <div class="campo">
+          <label>Fim</label>
+          <input type="time" id="f-fim" onchange="verificarDisp()">
+        </div>
+      </div>
+
+      
+      <div class="disp-badge" id="disp-badge">
+        <span id="disp-icone"></span>
+        <span id="disp-texto"></span>
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secundario" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-primario" id="btn-confirmar" onclick="confirmarReserva()">
+        Confirmar reserva
+      </button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+
+const H_INI   = 7;   
+const H_FIM   = 21;  
+const HORAS   = H_FIM - H_INI;
+
+
+let dataAtual       = document.getElementById("inp-data").value;
+let recursoSel      = null;   
+let nomeRecursoSel  = "Todos os recursos";
+let visaoGeral      = {};     
+let reqId           = 0;      
+let recursoModal    = null;   
+
+
+document.addEventListener("DOMContentLoaded", () => {
+  gerarReguaHoras();
+  atualizarLabelData();
+  carregarVisaoGeral();
+});
+
+
+function moverDia(delta) {
+  const d = new Date(dataAtual + "T12:00:00");
+  d.setDate(d.getDate() + delta);
+  dataAtual = d.toISOString().slice(0, 10);
+  document.getElementById("inp-data").value = dataAtual;
+  atualizarLabelData();
+  carregarVisaoGeral();
+}
+
+function onDataChange() {
+  dataAtual = document.getElementById("inp-data").value;
+  atualizarLabelData();
+  carregarVisaoGeral();
+}
+
+function irHoje() {
+  dataAtual = new Date().toISOString().slice(0, 10);
+  document.getElementById("inp-data").value = dataAtual;
+  atualizarLabelData();
+  carregarVisaoGeral();
+}
+
+function atualizarLabelData() {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const d    = new Date(dataAtual + "T12:00:00");
+  const opts = { weekday:"long", day:"numeric", month:"long" };
+  const txt  = d.toLocaleDateString("pt-BR", opts);
+  document.getElementById("label-data").textContent =
+    dataAtual === hoje ? `Hoje, ${txt}` : txt;
+  document.getElementById("btn-hoje").style.display =
+    dataAtual !== hoje ? "flex" : "none";
+}
+
+
+function gerarReguaHoras() {
+  let html = "";
+  for (let h = H_INI; h <= H_FIM; h++)
+    html += `<div class="tick-hora">${String(h).padStart(2,"0")}h</div>`;
+  document.getElementById("regua-horas").innerHTML = html;
+}
+
+
+async function carregarVisaoGeral() {
+  const meuReq = ++reqId;
+
+  
+  document.getElementById("linhas-recursos").innerHTML =
+    `<div class="estado-vazio"><div class="estado-vazio-icone">⏳</div>` +
+    `<div class="estado-vazio-txt">Carregando…</div></div>`;
+
+  const r = await api("get", `/agendamento/api/visao-geral?data=${dataAtual}`);
+  if (meuReq !== reqId) return; 
+
+  if (!r.ok) {
+    document.getElementById("linhas-recursos").innerHTML =
+      `<div class="estado-vazio"><div class="estado-vazio-icone">⚠️</div>` +
+      `<div class="estado-vazio-txt">Erro ao carregar reservas.</div></div>`;
+    return;
+  }
+
+  visaoGeral = r.dados;
+  atualizarCards();
+  renderizarTimeline();
+}
+
+
+function atualizarCards() {
+  const todosRecursos = document.querySelectorAll(".card-recurso");
+  let totalReservas = 0;
+  let livres = 0;
+  const totalRec = todosRecursos.length;
+
+  todosRecursos.forEach(card => {
+    const rid      = card.id.replace("card-", "");
+    const reservas = visaoGeral[rid] || [];
+    totalReservas += reservas.length;
+
+    const elStatus = document.getElementById(`status-${rid}`);
+    const elBarra  = document.getElementById(`barra-${rid}`);
+
+    if (reservas.length === 0) {
+      livres++;
+      elStatus.textContent  = "Livre hoje";
+      elStatus.className    = "recurso-status livre";
+      elBarra.style.width   = "0%";
+      elBarra.className     = "mini-barra-fill";
+    } else {
+      
+      let minOcup = 0;
+      reservas.forEach(r => {
+        const [h1,m1] = r.hora_inicio.split(":").map(Number);
+        const [h2,m2] = r.hora_fim.split(":").map(Number);
+        minOcup += (h2*60+m2) - (h1*60+m1);
+      });
+      const pct = Math.min(100, Math.round(minOcup / (HORAS*60) * 100));
+      elBarra.style.width = pct + "%";
+
+      if (pct >= 70) {
+        elStatus.textContent = "Muito ocupado";
+        elStatus.className   = "recurso-status ocupado";
+        elBarra.className    = "mini-barra-fill alta";
+      } else {
+        elStatus.textContent = `${reservas.length} reserva${reservas.length>1?"s":""}`;
+        elStatus.className   = "recurso-status parcial";
+        elBarra.className    = "mini-barra-fill media";
+      }
+    }
+  });
+
+  
+  document.getElementById("chip-livres").textContent   = `${livres} livres`;
+  document.getElementById("chip-reservas").textContent = `${totalReservas} reservas`;
+}
+
+
+function selecionarRecurso(rid, nome) {
+  recursoSel     = rid;
+  nomeRecursoSel = nome || "Todos os recursos";
+
+  
+  document.querySelectorAll(".card-recurso").forEach(c => c.classList.remove("selecionado"));
+  document.getElementById("btn-todos").classList.remove("ativo");
+
+  if (rid) {
+    document.getElementById(`card-${rid}`)?.classList.add("selecionado");
+  } else {
+    document.getElementById("btn-todos").classList.add("ativo");
+  }
+
+  document.getElementById("timeline-titulo").textContent = nomeRecursoSel;
+  renderizarTimeline();
+  fecharDetalhe();
+}
+
+
+function renderizarTimeline() {
+  const todosRec = Array.from(document.querySelectorAll(".card-recurso"))
+                        .map(c => ({ id: c.id.replace("card-",""),
+                                     nome: c.querySelector(".recurso-nome").textContent.trim(),
+                                     icone: c.querySelector(".recurso-icone").textContent.trim() }));
+
+  const recursos = recursoSel ? todosRec.filter(r => r.id === recursoSel) : todosRec;
+
+  if (recursos.length === 0) {
+    document.getElementById("linhas-recursos").innerHTML =
+      `<div class="estado-vazio"><div class="estado-vazio-icone">🔍</div>` +
+      `<div class="estado-vazio-txt">Recurso não encontrado.</div></div>`;
+    return;
+  }
+
+  const horaAgora = posicaoAgora();
+  let html = "";
+
+  for (const rec of recursos) {
+    const reservas = visaoGeral[rec.id] || [];
+    const blocos   = reservas.map(r => criarBloco(r)).join("");
+    const linhaAgora = horaAgora >= 0 && horaAgora <= 100
+      ? `<div class="agora-line" style="left:${horaAgora.toFixed(2)}%"></div>` : "";
+
+    html += `
+      <div class="linha-recurso">
+        <div class="linha-nome" title="${rec.nome}">${rec.icone} ${rec.nome}</div>
+        <div class="linha-slots"
+             onclick="cliqueLinha(event,'${rec.id}','${rec.nome}')"
+             title="Clique para reservar ${rec.nome}">
+          ${linhaAgora}
+          ${blocos}
+        </div>
+      </div>`;
+  }
+
+  const temReservas = recursos.some(r => (visaoGeral[r.id]||[]).length > 0);
+  if (!temReservas) {
+    html += `
+      <div class="estado-vazio" style="padding:24px;">
+        <div style="font-size:1.4rem;margin-bottom:8px;">✅</div>
+        <div class="estado-vazio-txt">Nenhuma reserva para este dia. Clique na linha para reservar.</div>
+      </div>`;
+  }
+
+  document.getElementById("linhas-recursos").innerHTML = html;
+}
+
+function posicaoAgora() {
+  const agora = new Date();
+  const h = agora.getHours() + agora.getMinutes()/60;
+  return ((h - H_INI) / HORAS) * 100;
+}
+
+function criarBloco(r) {
+  const pctIni = horaPct(r.hora_inicio);
+  const pctFim = horaPct(r.hora_fim);
+  const larg   = Math.max(0, pctFim - pctIni);
+  const cls    = r.e_minha ? "minha" : "outro";
+  const label  = larg > 5 ? `${r.hora_inicio} · ${primeiroNome(r.professor_nome)}` : "";
+
+  return `<button class="bloco ${cls}"
+    style="left:${pctIni.toFixed(2)}%;width:${larg.toFixed(2)}%"
+    onclick="event.stopPropagation();abrirDetalhe(${r.id})"
+    title="${r.professor_nome} — ${r.hora_inicio}–${r.hora_fim}"
+    aria-label="Reserva de ${r.professor_nome}, ${r.hora_inicio} às ${r.hora_fim}">
+    ${label}
+  </button>`;
+}
+
+function horaPct(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  return ((h + m/60 - H_INI) / HORAS) * 100;
+}
+
+function primeiroNome(nome) {
+  return (nome || "?").split(" ")[0];
+}
+
+
+function cliqueLinha(e, rid, rnome) {
+  if (e.target.classList.contains("bloco")) return;
+  fecharDetalhe();
+
+  
+  const linha  = e.currentTarget;
+  const rect   = linha.getBoundingClientRect();
+  const pct    = (e.clientX - rect.left) / rect.width;
+  const horaF  = H_INI + pct * HORAS;
+  const hh     = Math.floor(horaF);
+  const mm     = horaF % 1 >= 0.5 ? "30" : "00";
+  const hfim   = Math.min(H_FIM, hh + 1);
+
+  
+  document.querySelectorAll(".item-recurso-modal").forEach(el => el.classList.remove("escolhido"));
+  document.querySelector(`.item-recurso-modal[data-id="${rid}"]`)?.classList.add("escolhido");
+  recursoModal = rid;
+
+  document.getElementById("f-data").value   = dataAtual;
+  document.getElementById("f-inicio").value = `${String(hh).padStart(2,"0")}:${mm}`;
+  document.getElementById("f-fim").value    = `${String(hfim).padStart(2,"0")}:${mm}`;
+
+  verificarDisp();
+  abrirModal();
+}
+
+
+function abrirDetalhe(id) {
+  
+  let reserva = null;
+  for (const lista of Object.values(visaoGeral)) {
+    reserva = lista.find(r => r.id === id);
+    if (reserva) break;
+  }
+  if (!reserva) return;
+
+  document.getElementById("det-nome").textContent = `${reserva.recurso_icone} ${reserva.recurso_nome_exibicao}`;
+  document.getElementById("det-prof").innerHTML   = `<b>${reserva.professor_nome}</b>`;
+  document.getElementById("det-hora").innerHTML   = `<b>${reserva.hora_inicio}</b> – <b>${reserva.hora_fim}</b>`;
+  document.getElementById("det-data").textContent = formatarData(reserva.data_reserva);
+
+  const acoes = document.getElementById("det-acoes");
+  acoes.innerHTML = reserva.e_minha
+    ? `<button class="btn btn-perigo btn-sm w-full"
+               onclick="cancelarReserva(${reserva.id})">Cancelar reserva</button>`
+    : "";
+
+  document.getElementById("detalhe").classList.add("aberto");
+}
+
+function fecharDetalhe() {
+  document.getElementById("detalhe").classList.remove("aberto");
+}
+
+
+function abrirModal() {
+  document.getElementById("f-data").min = dataAtual;
+  if (!document.getElementById("f-data").value) {
+    document.getElementById("f-data").value = dataAtual;
+  }
+  document.getElementById("overlay").classList.add("aberto");
+}
+
+function fecharModal() {
+  document.getElementById("overlay").classList.remove("aberto");
+  document.getElementById("disp-badge").className = "disp-badge";
+  recursoModal = null;
+  document.querySelectorAll(".item-recurso-modal").forEach(el => el.classList.remove("escolhido"));
+}
+
+function fecharOverlay(e) {
+  if (e.target === document.getElementById("overlay")) fecharModal();
+}
+
+function escolherRecurso(el, rid) {
+  document.querySelectorAll(".item-recurso-modal").forEach(e => e.classList.remove("escolhido"));
+  el.classList.add("escolhido");
+  recursoModal = rid;
+  verificarDisp();
+}
+
+
+let _timerDisp = null;
+async function verificarDisp() {
+  clearTimeout(_timerDisp);
+  _timerDisp = setTimeout(async () => {
+    const rid  = recursoModal;
+    const data = document.getElementById("f-data").value;
+    const ini  = document.getElementById("f-inicio").value;
+    const fim  = document.getElementById("f-fim").value;
+    const el   = document.getElementById("disp-badge");
+
+    if (!rid || !data || !ini || !fim || ini >= fim) {
+      el.className = "disp-badge"; return;
+    }
+
+    const r = await api("get",
+      `/agendamento/api/disponibilidade?recurso_id=${rid}&data=${data}&hora_inicio=${ini}&hora_fim=${fim}`);
+    if (!r.ok) return;
+
+    const icone = document.getElementById("disp-icone");
+    const texto = document.getElementById("disp-texto");
+
+    if (r.dados.disponivel) {
+      el.className     = "disp-badge livre";
+      icone.textContent = "✓";
+      texto.textContent = "Disponível neste horário";
+    } else {
+      const c = r.dados.conflito;
+      el.className      = "disp-badge ocupado";
+      icone.textContent  = "✗";
+      texto.textContent  =
+        `Ocupado das ${c.hora_inicio} às ${c.hora_fim} por ${c.professor_nome}`;
+    }
+  }, 350);
+}
+
+
+async function confirmarReserva() {
+  const rid  = recursoModal;
+  const data = document.getElementById("f-data").value;
+  const ini  = document.getElementById("f-inicio").value;
+  const fim  = document.getElementById("f-fim").value;
+
+  if (!rid)  { mostrarAlerta("Selecione um recurso.", "aviso"); return; }
+  if (!ini || !fim) { mostrarAlerta("Informe o horário.", "aviso"); return; }
+  if (ini >= fim)   { mostrarAlerta("Horário inválido.", "aviso"); return; }
+
+  mostrarSpinner("btn-confirmar");
+  const r = await api("post", "/agendamento/api/reservas", {
+    recurso_id: rid, data_reserva: data, hora_inicio: ini, hora_fim: fim
+  });
+  ocultarSpinner("btn-confirmar");
+
+  if (r.ok) {
+    mostrarAlerta("Reserva confirmada! ✓", "sucesso");
+    fecharModal();
+    await carregarVisaoGeral();
+  } else {
+    mostrarAlerta(r.dados?.erro || "Erro ao reservar.", "erro", 7000);
+  }
+}
+
+
+async function cancelarReserva(id) {
+  if (!confirm("Cancelar esta reserva?")) return;
+  const r = await api("delete", `/agendamento/api/reservas/${id}`);
+  if (r.ok) {
+    mostrarAlerta("Reserva cancelada.", "aviso");
+    fecharDetalhe();
+    await carregarVisaoGeral();
+  } else {
+    mostrarAlerta(r.dados?.erro || "Erro.", "erro");
+  }
+}
+
+
+function formatarData(iso) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+</script>
+{% endblock %}

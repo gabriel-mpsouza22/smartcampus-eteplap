@@ -1,0 +1,49 @@
+{
+  "observacao": "Cada dispositivo físico tem seu próprio token. Configure o firmware do ESP32 para enviar esse token no header X-Device-Token.",
+
+  "agua": {
+    "sensores": [
+      {
+        "id": "bebedouro_1",
+        "nome": "Bebedouro — Pátio Principal",
+        "hardware": "ESP32 + JSN-SR04T",
+        "limite_minimo": 20,
+        "token": "81cfea5c01910fd5a49e1cc8"
+      },
+      {
+        "id": "bebedouro_2",
+        "nome": "Bebedouro — Bloco B",
+        "hardware": "ESP32 + JSN-SR04T",
+        "limite_minimo": 20,
+        "token": "c067ae2c21e1c09223a9f04e"
+      },
+      {
+        "id": "cisterna",
+        "nome": "Cisterna Principal",
+        "hardware": "ESP32 + JSN-SR04T",
+        "limite_minimo": 15,
+        "token": "4cc60488528a9855de135331"
+      }
+    ]
+  },
+
+  "portoes": {
+    "token": "e273012c0a9eab854aac76ce",
+    "hardware": "ESP32 + atuador (1 controlador para os 2 portões)",
+    "horario_abertura": "07:20",
+    "horario_fechamento": "21:00",
+    "lista": [
+      { "id": "principal",   "nome": "Portão Principal" },
+      { "id": "secundario",  "nome": "Portão Secundário" }
+    ]
+  },
+
+  "ar_condicionado": {
+    "token": "614c2e402dd8303bbe41e91d",
+    "hardware": "ESP32 + módulo IR (1 controlador para 10 ACs)",
+    "nome": "Ar-condicionados das Salas",
+    "quantidade": 10,
+    "horario_ligar": "07:00",
+    "dias_semana_automacao": [0, 1, 2, 3, 4]
+  }
+}

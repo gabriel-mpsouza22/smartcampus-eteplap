@@ -1,0 +1,18 @@
+{
+  "lista": "padrao",
+  "descricao": "Segunda a Sexta",
+  "horarios": [
+    { "id": "P01", "hora": "07:20", "descricao": "Entrada manhã",          "cancelado": false },
+    { "id": "P02", "hora": "09:00", "descricao": "Intervalo manhã",        "cancelado": false },
+    { "id": "P03", "hora": "09:20", "descricao": "Retorno intervalo",      "cancelado": false },
+    { "id": "P04", "hora": "10:50", "descricao": "Intervalo manhã 2",      "cancelado": false },
+    { "id": "P05", "hora": "11:10", "descricao": "Retorno intervalo 2",    "cancelado": false },
+    { "id": "P06", "hora": "12:30", "descricao": "Saída manhã / Entrada tarde", "cancelado": false },
+    { "id": "P07", "hora": "14:30", "descricao": "Intervalo tarde",        "cancelado": false },
+    { "id": "P08", "hora": "14:50", "descricao": "Retorno intervalo tarde","cancelado": false },
+    { "id": "P09", "hora": "16:10", "descricao": "Saída tarde / Entrada noite", "cancelado": false },
+    { "id": "P10", "hora": "18:30", "descricao": "Intervalo noite",        "cancelado": false },
+    { "id": "P11", "hora": "18:50", "descricao": "Retorno intervalo noite","cancelado": false },
+    { "id": "P12", "hora": "21:00", "descricao": "Saída noite",            "cancelado": false }
+  ]
+}

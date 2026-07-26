@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+{% block titulo %}Automação Escolar{% endblock %}
+{% block topbar_titulo %}🏫 Automação Escolar{% endblock %}
+
+{% block topbar_acoes %}
+<button class="btn btn-secundario btn-sm" onclick="carregarTudo()">↻ Atualizar</button>
+{% endblock %}
+
+{% block estilos %}
+<style>
+.grid {
+    display: grid;
+    gap: 20px;
+}
+
+.secao {
+    background: var(--card);
+    border: 1px solid var(--borda);
+    border-radius: 18px;
+    padding: 24px;
+}
+
+.secao-titulo {
+    font-size: 1.2rem;
+    font-weight: 800;
+    margin-bottom: 20px;
+}
+
+.cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+}
+
+.card {
+    background: var(--fundo);
+    border-radius: 16px;
+    padding: 18px;
+    border-left: 5px solid var(--verde);
+}
+
+.card.alerta {
+    border-left-color: var(--vermelho);
+}
+
+.card.offline {
+    border-left-color: gray;
+}
+
+.nome {
+    font-size: .9rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.valor {
+    font-size: 2rem;
+    font-weight: 800;
+    font-family: monospace;
+}
+
+.sub {
+    margin-top: 8px;
+    font-size: .78rem;
+    color: var(--texto-mudo);
+}
+
+.estado {
+    margin-top: 10px;
+    font-size: .85rem;
+    font-weight: 700;
+}
+
+.verde { color: #16A34A; }
+.vermelho { color: #DC2626; }
+.azul { color: #2563EB; }
+
+.acoes {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+}
+
+.btn-acao {
+    border: none;
+    padding: 10px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.btn-abrir {
+    background: #DCFCE7;
+    color: #166534;
+}
+
+.btn-fechar {
+    background: #FEE2E2;
+    color: #991B1B;
+}
+
+.btn-ligar {
+    background: #DBEAFE;
+    color: #1D4ED8;
+}
+
+.btn-desligar {
+    background: #E5E7EB;
+    color: #374151;
+}
+
+.alerta-topo {
+    display: none;
+    margin-bottom: 20px;
+    padding: 14px 18px;
+    border-radius: 14px;
+    background: #FEE2E2;
+    color: #991B1B;
+    font-weight: 700;
+}
+
+.alerta-topo.visivel {
+    display: block;
+}
+</style>
+{% endblock %}
+
+{% block conteudo %}
+
+<div class="alerta-topo" id="alerta-topo"></div>
+
+<div class="grid">
+
+    
+    <section class="secao">
+        <div class="secao-titulo">💧 Água</div>
+
+        <div class="cards">
+            {% for sensor in sensores_agua %}
+            <div class="card" id="agua-{{ sensor.id }}">
+                <div class="nome">{{ sensor.nome }}</div>
+                <div class="valor" id="valor-{{ sensor.id }}">--%</div>
+                <div class="estado" id="status-{{ sensor.id }}">Carregando...</div>
+                <div class="sub" id="hora-{{ sensor.id }}"></div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    
+    <section class="secao">
+        <div class="secao-titulo">🚪 Portões</div>
+
+        <div class="cards">
+            {% for p in portoes %}
+            <div class="card" id="portao-{{ p.id }}">
+                <div class="nome">{{ p.nome }}</div>
+                <div class="valor" id="estado-portao-{{ p.id }}">--</div>
+                <div class="sub" id="hora-portao-{{ p.id }}"></div>
+
+                <div class="acoes">
+                    <button class="btn-acao btn-abrir"
+                            onclick="abrirPortao('{{ p.id }}')">
+                        Abrir
+                    </button>
+
+                    <button class="btn-acao btn-fechar"
+                            onclick="fecharPortao('{{ p.id }}')">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    
+    <section class="secao">
+        <div class="secao-titulo">❄ Ar-condicionado</div>
+
+        <div class="card" id="card-ac">
+            <div class="nome" id="nome-ac">Ar-condicionados</div>
+            <div class="valor" id="estado-ac">--</div>
+            <div class="sub" id="hora-ac"></div>
+
+            <div class="acoes">
+                <button class="btn-acao btn-ligar" onclick="ligarAC()">
+                    Ligar
+                </button>
+
+                <button class="btn-acao btn-desligar" onclick="desligarAC()">
+                    Desligar
+                </button>
+            </div>
+        </div>
+    </section>
+
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    carregarTudo();
+    setInterval(carregarTudo, 15000);
+});
+
+async function carregarTudo() {
+    const r = await api("get", "/iot/api/status");
+
+    if (!r || !r.ok) {
+        mostrarAlerta("Falha ao carregar dados do sistema IoT.");
+        return;
+    }
+
+    esconderAlerta();
+
+    renderAgua(r.agua || r.dados?.agua || []);
+    renderPortoes(r.portoes || r.dados?.portoes || []);
+    renderAC(r.ar_condicionado || r.dados?.ar_condicionado || {});
+}
+
+function renderAgua(sensores) {
+    let alertas = [];
+
+    sensores.forEach(sensor => {
+        const card = document.getElementById(`agua-${sensor.id}`);
+        const valor = document.getElementById(`valor-${sensor.id}`);
+        const status = document.getElementById(`status-${sensor.id}`);
+        const hora = document.getElementById(`hora-${sensor.id}`);
+
+        if (!card) return;
+
+        card.className = "card";
+
+        if (sensor.sem_sinal) {
+            card.classList.add("offline");
+            valor.textContent = "--";
+            status.textContent = "Sensor offline";
+            hora.textContent = "Sem leituras";
+            alertas.push(`${sensor.nome} offline`);
+            return;
+        }
+
+        valor.textContent = `${sensor.nivel}%`;
+
+        if (sensor.alerta) {
+            card.classList.add("alerta");
+            status.innerHTML = `<span class="vermelho">⚠ Nível baixo</span>`;
+            alertas.push(`${sensor.nome} com nível baixo`);
+        } else {
+            status.innerHTML = `<span class="verde">Normal</span>`;
+        }
+
+        hora.textContent = sensor.data_hora
+            ? `Atualizado: ${formatarData(sensor.data_hora)}`
+            : "";
+    });
+
+    if (alertas.length) {
+        mostrarAlerta(alertas.join(" • "));
+    }
+}
+
+function renderPortoes(portoes) {
+    portoes.forEach(portao => {
+        const estado = document.getElementById(`estado-portao-${portao.id}`);
+        const hora = document.getElementById(`hora-portao-${portao.id}`);
+        const card = document.getElementById(`portao-${portao.id}`);
+
+        if (!estado) return;
+
+        card.className = "card";
+
+        const aberto = portao.estado_atual === "aberto";
+
+        estado.textContent = aberto ? "ABERTO" : "FECHADO";
+        estado.className = `valor ${aberto ? "verde" : "vermelho"}`;
+
+        hora.textContent = portao.atualizado_em
+            ? `Atualizado: ${formatarData(portao.atualizado_em)}`
+            : "Sem confirmação";
+    });
+}
+
+function renderAC(ac) {
+    const estado = document.getElementById("estado-ac");
+    const hora = document.getElementById("hora-ac");
+    const nome = document.getElementById("nome-ac");
+
+    if (!estado) return;
+
+    nome.textContent = `${ac.nome || "Ar-condicionados"} (${ac.quantidade || 0} unidades)`;
+
+    const ligado = ac.estado_atual === "ligado";
+
+    estado.textContent = ligado ? "LIGADO" : "DESLIGADO";
+    estado.className = `valor ${ligado ? "azul" : ""}`;
+
+    hora.textContent = ac.atualizado_em
+        ? `Atualizado: ${formatarData(ac.atualizado_em)}`
+        : "Sem confirmação";
+}
+async function abrirPortao(id) {
+    try {
+        const r = await api("post", `/iot/portao/${id}/abrir`);
+        if (r.ok) {
+            carregarTudo();
+        } else {
+            mostrarAlerta(r.erro || "Falha ao abrir portão.");
+        }
+    } catch {
+        mostrarAlerta("Erro de comunicação ao abrir portão.");
+    }
+}
+
+async function fecharPortao(id) {
+    try {
+        const r = await api("post", `/iot/portao/${id}/fechar`);
+        if (r.ok) {
+            carregarTudo();
+        } else {
+            mostrarAlerta(r.erro || "Falha ao fechar portão.");
+        }
+    } catch {
+        mostrarAlerta("Erro de comunicação ao fechar portão.");
+    }
+}
+
+async function ligarAC() {
+    try {
+        const r = await api("post", "/iot/ac/ligar");
+        if (r.ok) {
+            carregarTudo();
+        } else {
+            mostrarAlerta(r.erro || "Falha ao ligar AC.");
+        }
+    } catch {
+        mostrarAlerta("Erro ao ligar AC.");
+    }
+}
+
+async function desligarAC() {
+    try {
+        const r = await api("post", "/iot/ac/desligar");
+        if (r.ok) {
+            carregarTudo();
+        } else {
+            mostrarAlerta(r.erro || "Falha ao desligar AC.");
+        }
+    } catch {
+        mostrarAlerta("Erro ao desligar AC.");
+    }
+}
+
+function mostrarAlerta(msg) {
+    const alerta = document.getElementById("alerta-topo");
+    alerta.textContent = "⚠ " + msg;
+    alerta.classList.add("visivel");
+}
+
+function esconderAlerta() {
+    document.getElementById("alerta-topo").classList.remove("visivel");
+}
+
+function formatarData(iso) {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleString("pt-BR");
+}
+</script>
+{% endblock %}

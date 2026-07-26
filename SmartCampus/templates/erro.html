@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Erro {{ codigo }} — Smart Campus {{ sigla_escola }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    .erro-pagina {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--fundo);
+      padding: 24px;
+    }
+    .erro-caixa {
+      text-align: center;
+      max-width: 440px;
+    }
+    .erro-codigo {
+      font-family: var(--fonte-display);
+      font-weight: 800;
+      font-size: 5rem;
+      color: var(--azul-escuro);
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+    .erro-titulo {
+      font-family: var(--fonte-display);
+      font-weight: 700;
+      font-size: 1.3rem;
+      color: var(--texto);
+      margin-bottom: 8px;
+    }
+    .erro-mensagem {
+      font-size: 0.9rem;
+      color: var(--texto-secundario);
+      margin-bottom: 28px;
+    }
+  </style>
+</head>
+<body>
+<div class="erro-pagina">
+  <div class="erro-caixa">
+    <div class="erro-codigo">{{ codigo }}</div>
+    <div class="erro-titulo">{{ titulo }}</div>
+    <p class="erro-mensagem">{{ mensagem }}</p>
+    <a href="/" class="btn btn-primario">← Voltar ao início</a>
+  </div>
+</div>
+</body>
+</html>
