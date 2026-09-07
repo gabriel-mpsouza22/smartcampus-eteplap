@@ -1,0 +1,38 @@
+{
+  "tabela": "livros",
+  "colunas": [
+    {
+      "nome": "id",
+      "tipo": "INTEIRO",
+      "modificadores": [
+        "CHAVE_PRIMARIA",
+        "AUTO"
+      ]
+    },
+    {
+      "nome": "nome",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "autor",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "genero",
+      "tipo": "TEXTO",
+      "modificadores": []
+    },
+    {
+      "nome": "prateleira",
+      "tipo": "TEXTO",
+      "modificadores": []
+    }
+  ],
+  "criada_em": "2026-06-29T20:25:15.008027"
+}
