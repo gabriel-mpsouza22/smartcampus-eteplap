@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+
+{% block titulo %}Avanço de Ano Letivo{% endblock %}
+{% block topbar_titulo %}<svg class='icon'><use href='#i-trending-up'></use></svg> Avanço de Ano Letivo{% endblock %}
+
+{% block topbar_acoes %}
+<a href="/alunos" class="btn btn-secundario btn-sm">
+  <svg class='icon'><use href='#i-arrow-left'></use></svg> Voltar ao cadastro
+</a>
+{% endblock %}
+
+{% block estilos %}
+<style>
+  .pr-layout { display: grid; grid-template-columns: 240px 1fr; gap: 18px; align-items: flex-start; }
+  @media (max-width: 860px) { .pr-layout { grid-template-columns: 1fr; } }
+
+  /* ── Coluna de turmas (checklist) ── */
+  .pr-turmas { display: flex; flex-direction: column; gap: 6px; }
+  .pr-turma-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    border-radius: var(--raio); cursor: pointer; border: 1.5px solid transparent;
+    font-size: .86rem; background: var(--card); transition: background .15s, border-color .15s;
+  }
+  .pr-turma-item:hover { background: var(--bg-fundo2); }
+  .pr-turma-item.ativa { border-color: var(--azul); background: var(--azul-claro); }
+  .pr-turma-check {
+    width: 18px; height: 18px; border-radius: 50%; flex: none;
+    border: 1.5px solid var(--borda-forte); display: flex; align-items: center; justify-content: center;
+  }
+  .pr-turma-item.concluida .pr-turma-check { background: var(--verde); border-color: var(--verde); color: var(--bg); }
+  .pr-turma-item.concluida .pr-turma-check svg { width: 12px; height: 12px; }
+  .pr-turma-nome { font-weight: 600; }
+  .pr-turma-info { font-size: .74rem; color: var(--texto-mudo); }
+
+  /* ── Banner de desfazer ── */
+  .pr-banner-desfazer {
+    display: none; align-items: center; gap: 12px; padding: 12px 16px; margin-bottom: 16px;
+    background: var(--amarelo-claro); border: 1.5px solid var(--amarelo); border-radius: var(--raio);
+    font-size: .86rem;
+  }
+  .pr-banner-desfazer.visivel { display: flex; }
+  .pr-banner-desfazer svg.icon { color: var(--amarelo); flex: none; }
+  .pr-banner-desfazer strong { display: block; }
+  .pr-banner-desfazer span { color: var(--texto-secundario); font-size: .78rem; }
+  .pr-banner-desfazer .btn { margin-left: auto; flex: none; }
+
+  /* ── Painel de trabalho ── */
+  .pr-vazio { text-align: center; color: var(--texto-mudo); padding: 60px 24px; }
+  .pr-vazio svg.icon { width: 40px; height: 40px; margin-bottom: 12px; opacity: .5; }
+
+  .pr-cabecalho-turma { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+  .pr-cabecalho-turma h3 { font-family: var(--fonte-display); font-size: 1.05rem; margin: 0; }
+  .pr-cabecalho-turma .sub { font-size: .8rem; color: var(--texto-mudo); }
+  .pr-destino-badge {
+    display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; font-weight: 700;
+    padding: 5px 12px; border-radius: 999px; background: var(--verde-claro); color: var(--verde);
+  }
+  .pr-destino-badge.formando { background: var(--roxo-claro); color: var(--roxo); }
+
+  .pr-linha {
+    display: flex; align-items: center; gap: 14px; padding: 11px 4px; border-bottom: 1px solid var(--borda);
+  }
+  .pr-linha:last-child { border-bottom: none; }
+  .pr-linha-nome { flex: 1; font-weight: 600; font-size: .88rem; }
+
+  .pr-select-destino {
+    padding: 6px 10px; border: 1.5px solid var(--amarelo); border-radius: 8px;
+    font-size: .8rem; background: var(--amarelo-claro); color: var(--texto);
+  }
+
+  /* Switch aprovado/reprovado — uma única ação por clique, sem checkbox + dropdown separados */
+  .pr-switch { display: flex; border: 1.5px solid var(--borda-forte); border-radius: 999px; overflow: hidden; flex: none; }
+  .pr-switch button {
+    border: none; background: none; padding: 6px 14px; font-size: .78rem; font-weight: 700;
+    cursor: pointer; color: var(--texto-mudo); transition: background .15s, color .15s;
+  }
+  .pr-switch button.selecionado.aprovar { background: var(--verde-claro); color: var(--verde); }
+  .pr-switch button.selecionado.reprovar { background: var(--vermelho-claro); color: var(--vermelho); }
+
+  /* ── Barra de confirmação fixa ── */
+  .pr-rodape {
+    position: sticky; bottom: 0; margin-top: 16px; padding: 14px 18px; border-radius: var(--raio-lg);
+    background: var(--bg-fundo2); border: 1.5px solid var(--borda-forte);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    box-shadow: var(--sombra-lg);
+  }
+  .pr-rodape-resumo { font-size: .86rem; }
+  .pr-rodape-resumo b { color: var(--verde); }
+  .pr-rodape-resumo b.reprovados { color: var(--vermelho); }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+
+<div class="pr-banner-desfazer" id="pr-banner-desfazer">
+  <svg class="icon"><use href="#i-warning"></use></svg>
+  <div>
+    <strong id="pr-banner-texto">Último avanço disponível para desfazer.</strong>
+    <span id="pr-banner-detalhe"></span>
+  </div>
+  <button class="btn btn-secundario btn-sm" onclick="desfazerUltimoLote()" id="btn-desfazer-lote">
+    <svg class='icon'><use href='#i-refresh'></use></svg> Desfazer
+  </button>
+</div>
+
+<div class="pr-layout">
+  <div class="pr-turmas" id="pr-lista-turmas">
+    {% for t in turmas %}
+    <div class="pr-turma-item" data-turma="{{ t.turma }}" onclick="selecionarTurma('{{ t.turma }}')">
+      <span class="pr-turma-check"></span>
+      <div>
+        <div class="pr-turma-nome">{{ t.turma }}</div>
+        <div class="pr-turma-info">{{ t.serie }} · {{ t.curso }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="card" id="pr-painel">
+    <div class="pr-vazio">
+      <svg class="icon"><use href="#i-graduation"></use></svg>
+      <div>Selecione uma turma ao lado para começar o avanço de ano.</div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let turmaAtual = null;
+let alunosAtuais = [];       // [{id, nome, acao, nova_turma}]
+let opcoesDestino = [];
+let ultimaSerie = false;
+let sugestaoAmbigua = false;
+let infoTurmaAtual = { serie: "", curso: "" };
+let turmasConcluidasNestaSessao = new Set();
+
+document.addEventListener("DOMContentLoaded", carregarBannerDesfazer);
+
+async function carregarBannerDesfazer() {
+  const r = await api("get", "/alunos/api/promocao/ultimo-lote");
+  const banner = document.getElementById("pr-banner-desfazer");
+  if (r.ok && r.dados.lote) {
+    const lote = r.dados.lote;
+    document.getElementById("pr-banner-texto").textContent =
+      `Último avanço (${lote.turma_origem || "turma"}): ${lote.resumo}.`;
+    document.getElementById("pr-banner-detalhe").textContent =
+      `Executado por ${lote.executado_por || "—"} em ${formatarDataHora(lote.executado_em)}.`;
+    banner.dataset.loteId = lote.id;
+    banner.classList.add("visivel");
+  } else {
+    banner.classList.remove("visivel");
+  }
+}
+
+async function desfazerUltimoLote() {
+  const loteId = document.getElementById("pr-banner-desfazer").dataset.loteId;
+  const ok = await confirmarAcao({
+    titulo: "Desfazer este avanço?",
+    texto: "Todos os alunos afetados por esse lote voltam exatamente para a turma e situação em que estavam antes.",
+    rotuloConfirmar: "Desfazer",
+    perigoso: true,
+  });
+  if (!ok) return;
+
+  const r = await api("post", "/alunos/api/promocao/desfazer", { lote_id: Number(loteId) });
+  if (r.ok) {
+    mostrarAlerta(`${r.dados.quantidade} aluno(s) restaurado(s).`, "sucesso");
+    carregarBannerDesfazer();
+    if (turmaAtual) selecionarTurma(turmaAtual);
+  } else {
+    mostrarAlerta(r.dados?.erro || r.erro || "Erro ao desfazer.", "erro");
+  }
+}
+
+async function selecionarTurma(turma) {
+  turmaAtual = turma;
+  document.querySelectorAll(".pr-turma-item").forEach(el => {
+    el.classList.toggle("ativa", el.dataset.turma === turma);
+  });
+
+  const painel = document.getElementById("pr-painel");
+  painel.innerHTML = `<div class="pr-vazio">Carregando…</div>`;
+
+  const r = await api("get", `/alunos/api/promocao/turma?turma=${encodeURIComponent(turma)}`);
+  if (!r.ok) {
+    painel.innerHTML = `<div class="pr-vazio" style="color:var(--vermelho)">${r.dados?.erro || r.erro || "Erro ao carregar turma."}</div>`;
+    return;
+  }
+
+  const dados = r.dados;
+  ultimaSerie = dados.ultima_serie;
+  opcoesDestino = dados.opcoes_turma_destino;
+  sugestaoAmbigua = dados.sugestao_ambigua;
+  infoTurmaAtual = { serie: dados.serie, curso: dados.curso };
+  alunosAtuais = dados.alunos.map(a => ({
+    id: a.id, nome: a.nome,
+    acao: ultimaSerie ? "concluir" : "avancar",
+    nova_turma: a.turma_sugerida,
+  }));
+
+  montarEstruturaPainel();
+}
+
+/** Monta o cabeçalho + a lista de linhas + rodapé uma única vez ao trocar de turma. */
+function montarEstruturaPainel() {
+  const painel = document.getElementById("pr-painel");
+
+  if (alunosAtuais.length === 0) {
+    painel.innerHTML = `<div class="pr-vazio">
+      <svg class="icon"><use href="#i-inbox"></use></svg>
+      <div>Não há alunos ativos nesta turma.</div>
+    </div>`;
+    return;
+  }
+
+  const destinoBadge = ultimaSerie
+    ? `<span class="pr-destino-badge formando"><svg class='icon'><use href='#i-star'></use></svg> Última série — conclui o curso</span>`
+    : (sugestaoAmbigua
+        ? `<span class="pr-destino-badge" style="background:var(--amarelo-claro);color:var(--amarelo)">Confirme a turma de cada aluno</span>`
+        : `<span class="pr-destino-badge"><svg class='icon'><use href='#i-arrow-right'></use></svg> ${opcoesDestino[0]?.turma || "—"}</span>`);
+
+  painel.innerHTML = `
+    <div class="pr-cabecalho-turma">
+      <div>
+        <h3>${turmaAtual}</h3>
+        <div class="sub">${infoTurmaAtual.serie} · ${infoTurmaAtual.curso} · ${alunosAtuais.length} aluno(s)</div>
+      </div>
+      ${destinoBadge}
+    </div>
+    <div id="pr-linhas"></div>
+    <div class="pr-rodape">
+      <div class="pr-rodape-resumo" id="pr-resumo"></div>
+      <button class="btn btn-primario" id="btn-confirmar-avanco" onclick="confirmarAvanco()">
+        <svg class='icon'><use href='#i-check'></use></svg> Confirmar avanço desta turma
+      </button>
+    </div>`;
+
+  renderizarLinhas();
+}
+
+/** Redesenha só as linhas de alunos (chamado a cada toggle) — não recria o cabeçalho/rodapé. */
+function renderizarLinhas() {
+  const container = document.getElementById("pr-linhas");
+  container.innerHTML = alunosAtuais.map((a, i) => {
+    const reprovado = a.acao === "reter";
+    let colunaDireita = "";
+    if (!reprovado && !ultimaSerie && sugestaoAmbigua) {
+      colunaDireita = `<select class="pr-select-destino" onchange="definirDestino(${i}, this.value)">
+        ${opcoesDestino.map(o => `<option value="${o.turma}" ${o.turma === a.nova_turma ? "selected" : ""}>${o.turma}</option>`).join("")}
+      </select>`;
+    }
+
+    return `
+      <div class="pr-linha">
+        <div class="pr-linha-nome">${a.nome}</div>
+        ${colunaDireita}
+        <div class="pr-switch">
+          <button class="aprovar ${!reprovado ? "selecionado" : ""}" onclick="definirAcao(${i}, '${ultimaSerie ? "concluir" : "avancar"}')">
+            ${ultimaSerie ? "Concluiu" : "Aprovado"}
+          </button>
+          <button class="reprovar ${reprovado ? "selecionado" : ""}" onclick="definirAcao(${i}, 'reter')">Reprovado</button>
+        </div>
+      </div>`;
+  }).join("");
+
+  atualizarResumo();
+}
+
+function definirAcao(indice, acao) {
+  alunosAtuais[indice].acao = acao;
+  if (acao === "reter") alunosAtuais[indice].nova_turma = null;
+  else if (!alunosAtuais[indice].nova_turma) alunosAtuais[indice].nova_turma = opcoesDestino[0]?.turma || null;
+  renderizarLinhas();
+}
+
+function definirDestino(indice, turma) {
+  alunosAtuais[indice].nova_turma = turma;
+}
+
+function atualizarResumo() {
+  const aprovados = alunosAtuais.filter(a => a.acao !== "reter").length;
+  const reprovados = alunosAtuais.filter(a => a.acao === "reter").length;
+  const verbo = ultimaSerie ? "concluem o curso" : "avançam";
+  document.getElementById("pr-resumo").innerHTML =
+    `<b>${aprovados}</b> ${verbo} · <b class="reprovados">${reprovados}</b> repetem a série`;
+}
+
+async function confirmarAvanco() {
+  const semDestino = alunosAtuais.find(a => a.acao === "avancar" && !a.nova_turma);
+  if (semDestino) {
+    mostrarAlerta(`Selecione a turma de destino de "${semDestino.nome}" antes de confirmar.`, "aviso");
+    return;
+  }
+
+  const aprovados = alunosAtuais.filter(a => a.acao !== "reter").length;
+  const reprovados = alunosAtuais.filter(a => a.acao === "reter").length;
+  const verbo = ultimaSerie ? "concluem o curso" : "avançam de série";
+
+  const ok = await confirmarAcao({
+    titulo: `Confirmar avanço de "${turmaAtual}"?`,
+    texto: `${aprovados} aluno(s) ${verbo} e ${reprovados} permanece(m) na turma atual. Essa ação pode ser desfeita depois, se necessário.`,
+    rotuloConfirmar: "Confirmar",
+  });
+  if (!ok) return;
+
+  mostrarSpinner("btn-confirmar-avanco");
+  const r = await api("post", "/alunos/api/promocao/confirmar", {
+    turma_origem: turmaAtual,
+    decisoes: alunosAtuais.map(a => ({ aluno_id: a.id, acao: a.acao, nova_turma: a.nova_turma })),
+  });
+  ocultarSpinner("btn-confirmar-avanco");
+
+  if (!r.ok) {
+    mostrarAlerta(r.dados?.erro || r.erro || "Erro ao confirmar avanço.", "erro");
+    return;
+  }
+
+  const loteId = r.dados.lote_id;
+  mostrarAlerta(`Turma "${turmaAtual}" processada: ${r.dados.resumo_texto}.`, "sucesso", 12000, {
+    rotulo: "Desfazer",
+    ao_clicar: async () => {
+      const rd = await api("post", "/alunos/api/promocao/desfazer", { lote_id: loteId });
+      if (rd.ok) { mostrarAlerta(`${rd.dados.quantidade} aluno(s) restaurado(s).`, "aviso"); carregarBannerDesfazer(); }
+    },
+  });
+
+  turmasConcluidasNestaSessao.add(turmaAtual);
+  const itemTurma = document.querySelector(`.pr-turma-item[data-turma="${CSS.escape(turmaAtual)}"]`);
+  if (itemTurma) {
+    itemTurma.classList.add("concluida");
+    itemTurma.querySelector(".pr-turma-check").innerHTML = `<svg class="icon"><use href="#i-check"></use></svg>`;
+  }
+  carregarBannerDesfazer();
+
+  irParaProximaTurmaPendente();
+}
+
+function irParaProximaTurmaPendente() {
+  const itens = Array.from(document.querySelectorAll(".pr-turma-item"));
+  const proxima = itens.find(el => !turmasConcluidasNestaSessao.has(el.dataset.turma));
+  if (proxima) {
+    selecionarTurma(proxima.dataset.turma);
+  } else {
+    document.getElementById("pr-painel").innerHTML = `<div class="pr-vazio">
+      <svg class="icon"><use href="#i-check-circle"></use></svg>
+      <div>Todas as turmas foram processadas. Bom ano letivo! 🎓</div>
+    </div>`;
+  }
+}
+</script>
+{% endblock %}
