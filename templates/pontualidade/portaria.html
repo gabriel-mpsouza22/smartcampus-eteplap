@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+
+{% block titulo %}Controle de Pontualidade{% endblock %}
+{% block topbar_titulo %}<svg class='icon'><use href='#i-door'></use></svg> Controle de Pontualidade{% endblock %}
+
+{% block topbar_acoes %}
+{% if usuario.perfil in ("coordenadora", "secretaria", "admin") %}
+<a href="/pontualidade/dashboard" class="btn btn-secundario btn-sm"><svg class='icon'><use href='#i-bar-chart'></use></svg> Painel da coordenação</a>
+{% endif %}
+{% endblock %}
+
+{% block estilos %}
+<style>
+  /* A tela inteira gira em torno de UMA coisa: o campo de busca.
+     Tudo mais é secundário, discreto, e só aparece quando necessário. */
+
+  .pt-wrap { max-width: 720px; margin: 0 auto; }
+
+  .pt-busca-caixa { position: relative; margin-bottom: 4px; }
+  .pt-busca-icone {
+    position: absolute; left: 20px; top: 50%; transform: translateY(-50%);
+    color: var(--texto-mudo); pointer-events: none;
+  }
+  .pt-busca-icone svg { width: 22px; height: 22px; }
+  #pt-busca {
+    width: 100%; font-size: 1.35rem; font-weight: 600; padding: 20px 20px 20px 56px;
+    border: 2px solid var(--borda-forte); border-radius: var(--raio-lg);
+    background: var(--card); color: var(--texto); outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  #pt-busca:focus { border-color: var(--azul); box-shadow: 0 0 0 4px var(--azul-claro); }
+  .pt-dica-atalho {
+    text-align: center; font-size: .74rem; color: var(--texto-mudo); margin: 8px 0 22px;
+  }
+  .pt-dica-atalho kbd {
+    background: var(--bg-fundo2); border: 1px solid var(--borda-forte); border-radius: 5px;
+    padding: 1px 6px; font-family: var(--fonte-mono); font-size: .7rem;
+  }
+
+  .pt-resultados { display: flex; flex-direction: column; gap: 8px; }
+  .pt-resultado-item {
+    display: flex; align-items: center; gap: 14px; padding: 14px 18px;
+    background: var(--card); border: 1.5px solid var(--borda); border-radius: var(--raio-lg);
+    cursor: pointer; transition: border-color .12s, background .12s;
+  }
+  .pt-resultado-item:hover, .pt-resultado-item.selecionado {
+    border-color: var(--azul); background: var(--azul-claro);
+  }
+  .pt-resultado-avatar {
+    width: 42px; height: 42px; border-radius: 50%; flex: none;
+    background: var(--bg-fundo2); display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-family: var(--fonte-display); color: var(--texto-secundario);
+  }
+  .pt-resultado-nome { font-weight: 700; font-size: 1rem; }
+  .pt-resultado-info { font-size: .8rem; color: var(--texto-mudo); }
+  .pt-resultado-mat { font-family: var(--fonte-mono); }
+  .pt-resultado-historico {
+    margin-left: auto; flex: none; width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; color: var(--texto-mudo);
+    transition: background .12s, color .12s; text-decoration: none;
+  }
+  .pt-resultado-historico:hover { background: var(--card); color: var(--texto); }
+
+  .pt-nao-encontrado {
+    text-align: center; padding: 28px 20px; color: var(--texto-mudo); font-size: .9rem;
+  }
+  .pt-nao-encontrado button { margin-top: 10px; }
+
+  /* Feedback pós-registro — grande, colorido pelo status, desaparece sozinho */
+  .pt-feedback {
+    display: none; align-items: center; gap: 16px; padding: 22px 26px; border-radius: var(--raio-lg);
+    margin-bottom: 22px; animation: pt-entrar .2s ease;
+  }
+  .pt-feedback.visivel { display: flex; }
+  .pt-feedback.normal       { background: var(--verde-claro); border: 1.5px solid var(--verde); }
+  .pt-feedback.atraso,
+  .pt-feedback.atraso_leve  { background: var(--amarelo-claro); border: 1.5px solid var(--amarelo); }
+  .pt-feedback.atraso_grave { background: var(--vermelho-claro); border: 1.5px solid var(--vermelho); }
+  .pt-feedback-icone { width: 44px; height: 44px; flex: none; }
+  .pt-feedback.normal .pt-feedback-icone { color: var(--verde); }
+  .pt-feedback.atraso .pt-feedback-icone, .pt-feedback.atraso_leve .pt-feedback-icone { color: var(--amarelo); }
+  .pt-feedback.atraso_grave .pt-feedback-icone { color: var(--vermelho); }
+  .pt-feedback-nome { font-weight: 800; font-size: 1.1rem; font-family: var(--fonte-display); }
+  .pt-feedback-detalhe { font-size: .88rem; color: var(--texto-secundario); margin-top: 2px; }
+  .pt-feedback-hora { margin-left: auto; font-family: var(--fonte-mono); font-size: 1.5rem; font-weight: 700; flex: none; }
+  @keyframes pt-entrar { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Formulário de cadastro rápido — só o essencial, sem burocracia */
+  .pt-cadastro-rapido { background: var(--card); border: 1.5px solid var(--borda-forte); border-radius: var(--raio-lg); padding: 20px; margin-top: 10px; }
+  .pt-cadastro-titulo { font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .pt-cadastro-aviso { font-size: .8rem; color: var(--texto-mudo); margin-bottom: 16px; }
+  .pt-campo-linha { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .pt-campo-linha input, .pt-campo-linha select {
+    padding: 11px 14px; border: 1.5px solid var(--borda-forte); border-radius: 10px; font-size: .92rem;
+    background: var(--fundo); color: var(--texto);
+  }
+  .pt-cadastro-acoes { display: flex; gap: 8px; margin-top: 14px; }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+<div class="pt-wrap">
+
+  <div class="pt-feedback" id="pt-feedback">
+    <svg class="pt-feedback-icone icon"><use id="pt-feedback-icone-uso" href="#i-check-circle"></use></svg>
+    <div>
+      <div class="pt-feedback-nome" id="pt-feedback-nome"></div>
+      <div class="pt-feedback-detalhe" id="pt-feedback-detalhe"></div>
+    </div>
+    <div class="pt-feedback-hora" id="pt-feedback-hora"></div>
+  </div>
+
+  <div class="pt-busca-caixa">
+    <span class="pt-busca-icone"><svg class="icon"><use href="#i-search"></use></svg></span>
+    <input type="text" id="pt-busca" placeholder="Digite o nome ou matrícula..." autocomplete="off">
+  </div>
+  <div class="pt-dica-atalho">
+    <kbd>F2</kbd> focar busca · <kbd>Enter</kbd> selecionar primeiro · <kbd>Esc</kbd> limpar
+  </div>
+
+  <div class="pt-resultados" id="pt-resultados"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const TURMAS = {{ turmas | tojson }};
+let resultadosAtuais = [];
+let indiceSelecionado = -1;
+let timerBusca = null;
+
+const campoBusca = document.getElementById("pt-busca");
+
+document.addEventListener("DOMContentLoaded", () => campoBusca.focus());
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "F2") { e.preventDefault(); campoBusca.focus(); campoBusca.select(); }
+});
+
+campoBusca.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { campoBusca.value = ""; renderizarResultados([]); return; }
+  if (e.key === "ArrowDown") { e.preventDefault(); moverSelecao(1); return; }
+  if (e.key === "ArrowUp") { e.preventDefault(); moverSelecao(-1); return; }
+  if (e.key === "Enter") {
+    e.preventDefault();
+    const alvo = indiceSelecionado >= 0 ? resultadosAtuais[indiceSelecionado] : resultadosAtuais[0];
+    if (alvo) registrarEntrada(alvo);
+  }
+});
+
+campoBusca.addEventListener("input", () => {
+  clearTimeout(timerBusca);
+  const termo = campoBusca.value.trim();
+  if (termo.length < 2) { renderizarResultados([]); return; }
+  timerBusca = setTimeout(() => buscar(termo), 150);
+});
+
+async function buscar(termo) {
+  const r = await api("get", `/pontualidade/api/buscar?q=${encodeURIComponent(termo)}`);
+  if (!r.ok) return;
+  resultadosAtuais = r.dados;
+  indiceSelecionado = -1;
+  renderizarResultados(r.dados, termo);
+}
+
+function moverSelecao(delta) {
+  if (resultadosAtuais.length === 0) return;
+  indiceSelecionado = Math.max(0, Math.min(resultadosAtuais.length - 1, indiceSelecionado + delta));
+  document.querySelectorAll(".pt-resultado-item").forEach((el, i) => {
+    el.classList.toggle("selecionado", i === indiceSelecionado);
+  });
+}
+
+function iniciais(nome) {
+  const partes = nome.trim().split(/\s+/);
+  return ((partes[0]?.[0] || "") + (partes[partes.length - 1]?.[0] || "")).toUpperCase();
+}
+
+function renderizarResultados(alunos, termoOriginal) {
+  const container = document.getElementById("pt-resultados");
+
+  if (!termoOriginal) { container.innerHTML = ""; return; }
+
+  if (alunos.length === 0) {
+    container.innerHTML = `
+      <div class="pt-nao-encontrado">
+        <svg class="icon" style="width:32px;height:32px;opacity:.5;"><use href="#i-inbox"></use></svg>
+        <div style="margin-top:8px;">Nenhum aluno encontrado para "${termoOriginal}".</div>
+        <div style="font-size:.78rem;margin:4px 0 4px;">Verifique se o aluno já possui cadastro antes de criar um novo.</div>
+        <button class="btn btn-secundario btn-sm" onclick="abrirCadastroRapido('${termoOriginal.replace(/'/g, "\\'")}')">
+          <svg class='icon'><use href='#i-plus'></use></svg> Cadastrar aluno
+        </button>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = alunos.map((a, i) => `
+    <div class="pt-resultado-item" onclick='registrarEntrada(${JSON.stringify(a)})'>
+      <div class="pt-resultado-avatar">${iniciais(a.nome)}</div>
+      <div>
+        <div class="pt-resultado-nome">${a.nome}</div>
+        <div class="pt-resultado-info">${a.turma}${a.matricula ? ` · <span class="pt-resultado-mat">Matrícula ${a.matricula}</span>` : ""}</div>
+      </div>
+      <a class="pt-resultado-historico" href="/pontualidade/aluno/${a.id}" title="Ver histórico" onclick="event.stopPropagation()">
+        <svg class='icon' style="width:16px;height:16px;"><use href='#i-clock'></use></svg>
+      </a>
+    </div>`).join("");
+}
+
+async function registrarEntrada(aluno) {
+  const r = await api("post", "/pontualidade/api/registrar", { aluno_id: aluno.id });
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao registrar entrada.", "erro"); return; }
+  mostrarFeedback(aluno.nome, r.dados.evento);
+  limparParaProximo();
+}
+
+function mostrarFeedback(nome, evento) {
+  const box = document.getElementById("pt-feedback");
+  box.className = `pt-feedback visivel ${evento.status}`;
+  document.getElementById("pt-feedback-icone-uso").setAttribute("href",
+    evento.status === "normal" ? "#i-check-circle" : "#i-warning");
+  document.getElementById("pt-feedback-nome").textContent = nome;
+  document.getElementById("pt-feedback-detalhe").textContent = evento.status_label;
+  document.getElementById("pt-feedback-hora").textContent = evento.horario;
+
+  clearTimeout(window._pt_timer_feedback);
+  window._pt_timer_feedback = setTimeout(() => box.classList.remove("visivel"), 6000);
+}
+
+function limparParaProximo() {
+  campoBusca.value = "";
+  resultadosAtuais = [];
+  indiceSelecionado = -1;
+  document.getElementById("pt-resultados").innerHTML = "";
+  campoBusca.focus();
+}
+
+function abrirCadastroRapido(nomeSugerido) {
+  const container = document.getElementById("pt-resultados");
+  container.innerHTML = `
+    <div class="pt-cadastro-rapido">
+      <div class="pt-cadastro-titulo"><svg class='icon'><use href='#i-plus'></use></svg> Cadastrar aluno</div>
+      <div class="pt-cadastro-aviso">Só o essencial — o cadastro pode ser completado depois pela secretaria.</div>
+      <div class="pt-campo-linha">
+        <input type="text" id="pt-novo-nome" placeholder="Nome completo" value="${nomeSugerido.replace(/"/g, "&quot;")}">
+        <input type="text" id="pt-novo-matricula" placeholder="Matrícula (opcional)">
+      </div>
+      <div class="pt-campo-linha" style="grid-template-columns:1fr;">
+        <select id="pt-novo-turma">
+          <option value="">Selecione a turma...</option>
+          ${TURMAS.map(t => `<option value="${t.turma}">${t.turma} — ${t.serie} · ${t.curso}</option>`).join("")}
+        </select>
+      </div>
+      <div class="pt-cadastro-acoes">
+        <button class="btn btn-primario" id="btn-cadastrar-registrar" onclick="cadastrarERegistrar()">
+          <svg class='icon'><use href='#i-check'></use></svg> Cadastrar e registrar entrada
+        </button>
+        <button class="btn btn-secundario" onclick="limparParaProximo()">Cancelar</button>
+      </div>
+    </div>`;
+  setTimeout(() => {
+    const campoTurma = document.getElementById("pt-novo-turma");
+    if (!document.getElementById("pt-novo-nome").value) document.getElementById("pt-novo-nome").focus();
+    else campoTurma.focus();
+  }, 30);
+}
+
+async function cadastrarERegistrar() {
+  const nome = document.getElementById("pt-novo-nome").value.trim();
+  const matricula = document.getElementById("pt-novo-matricula").value.trim();
+  const turma = document.getElementById("pt-novo-turma").value;
+
+  if (!nome || !turma) { mostrarAlerta("Preencha o nome e selecione a turma.", "aviso"); return; }
+
+  mostrarSpinner("btn-cadastrar-registrar");
+  const r = await api("post", "/pontualidade/api/registrar-novo", { nome, matricula, turma });
+  ocultarSpinner("btn-cadastrar-registrar");
+
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao cadastrar.", "erro"); return; }
+  mostrarFeedback(nome, r.dados.evento);
+  limparParaProximo();
+}
+</script>
+{% endblock %}
