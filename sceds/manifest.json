@@ -1,0 +1,31 @@
+{
+  "sistema": "SmartCampus",
+  "tipo": "dados locais SCEDS",
+  "gerado_por": "gerar_mock_data.py",
+  "gerado_em": "2026-08-28T19:35:00.334945",
+  "periodo_demo": {
+    "inicio": "2026-02-02",
+    "fim": "2026-08-26"
+  },
+  "tabelas": {
+    "alunos": 446,
+    "usuarios": 14,
+    "livros": 577,
+    "emprestimos": 240,
+    "ocorrencias": 169,
+    "evasao_frequencia": 3122,
+    "reservas": 180,
+    "chaves": 10,
+    "chaves_movimentos": 95,
+    "compromissos": 55,
+    "mensagens_chat": 66,
+    "entradas_pontualidade": 63332,
+    "saidas_autorizacoes": 65,
+    "saidas_eventos": 156,
+    "visitantes_visitas": 75,
+    "visitantes_eventos": 137,
+    "chamados": 55,
+    "leituras_iot": 1122
+  },
+  "observacao": "Arquivo de controle da inicialização local. Não contém credenciais."
+}
