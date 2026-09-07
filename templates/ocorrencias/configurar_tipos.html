@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block titulo %}Configurar tipos de ocorrência{% endblock %}
+{% block topbar_titulo %}<svg class='icon'><use href='#i-tag'></use></svg> Configurar tipos de ocorrência{% endblock %}
+{% block topbar_acoes %}
+<a href="/ocorrencias/" class="btn btn-secundario btn-sm"><svg class='icon'><use href='#i-arrow-left'></use></svg> Voltar</a>
+{% endblock %}
+
+{% block estilos %}
+<style>
+.ct-lista { display:flex; flex-direction:column; gap:10px; max-width:720px; }
+.ct-item { display:flex; align-items:center; gap:12px; padding:14px 16px; }
+.ct-cor { width:14px; height:14px; border-radius:50%; flex-shrink:0; }
+.ct-cor-verde{background:var(--verde,#22c55e);} .ct-cor-amarelo{background:var(--amarelo,#eab308);}
+.ct-cor-laranja{background:#f97316;} .ct-cor-vermelho{background:var(--vermelho,#ef4444);}
+.ct-cor-azul{background:var(--azul,#3b82f6);} .ct-cor-cinza{background:#6b7280;} .ct-cor-roxo{background:#a855f7;}
+.ct-info { flex:1; min-width:0; }
+.ct-nome { font-weight:600; }
+.ct-sub { font-size:0.78rem; color:var(--texto-mudo); margin-top:2px; }
+.ct-acoes { display:flex; gap:8px; flex-shrink:0; }
+.ct-severidade { display:flex; gap:3px; align-items:center; }
+.ct-severidade span { width:7px; height:7px; border-radius:50%; background:var(--borda); }
+.ct-severidade span.ativo { background:var(--texto-secundario); }
+.ct-cores-opcoes { display:flex; gap:8px; flex-wrap:wrap; }
+.ct-cores-opcoes label { display:flex; align-items:center; gap:5px; font-size:0.82rem; font-weight:400; cursor:pointer; }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+<div class="mb-24">
+  <p class="secao-subtitulo">
+    Esta é a régua disciplinar usada em Ocorrências, Prevenção de Evasão e Monitoramento — cada escola tem a sua.
+    "Elogio" e "Outro" são usados internamente pelo sistema (reforço positivo e categoria de reserva) e por isso
+    não podem ser excluídos, mas o nome, a cor e a severidade de qualquer tipo podem ser ajustados.
+    A severidade (0 a 3) decide o peso de cada tipo no score de risco de evasão — 0 é neutro/positivo, 3 é grave.
+  </p>
+</div>
+
+<button class="btn btn-primario btn-sm mb-16" onclick="abrirModalTipo()">
+  <svg class='icon'><use href='#i-plus'></use></svg> Novo tipo
+</button>
+
+<div class="ct-lista" id="lista-tipos">
+  <div class="estado-carregando"><span class="spinner"></span> Carregando…</div>
+</div>
+
+<dialog class="modal" id="dialogo-tipo">
+  <div class="modal-corpo">
+    <div class="modal-titulo" id="mt-titulo">Novo tipo de ocorrência</div>
+
+    <div class="campo">
+      <label for="mt-nome">Nome</label>
+      <input type="text" id="mt-nome" placeholder="Ex: Encaminhamento à Orientação">
+    </div>
+
+    <div class="campo">
+      <label>Cor</label>
+      <div class="ct-cores-opcoes" id="mt-cores"></div>
+    </div>
+
+    <div class="campo">
+      <label for="mt-severidade">Severidade</label>
+      <select id="mt-severidade">
+        <option value="0">0 — Positivo (como elogio)</option>
+        <option value="1">1 — Leve</option>
+        <option value="2">2 — Moderada</option>
+        <option value="3">3 — Grave</option>
+      </select>
+    </div>
+  </div>
+  <div class="modal-acoes">
+    <button class="btn btn-secundario" onclick="document.getElementById('dialogo-tipo').close()">Cancelar</button>
+    <button class="btn btn-primario" id="btn-salvar-tipo" onclick="salvarTipo()">Salvar</button>
+  </div>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CORES = ["verde", "amarelo", "laranja", "vermelho", "azul", "cinza", "roxo"];
+let tiposCache = [];
+let tipoEditandoId = null;
+
+document.addEventListener("DOMContentLoaded", carregarTipos);
+
+async function carregarTipos() {
+  const r = await api("get", "/ocorrencias/api/tipos");
+  const alvo = document.getElementById("lista-tipos");
+  if (!r.ok) {
+    alvo.innerHTML = `<div class="estado-erro"><div class="estado-erro-titulo">Não foi possível carregar os tipos.</div></div>`;
+    return;
+  }
+  tiposCache = r.dados.sort((a, b) => a.ordem - b.ordem);
+  alvo.innerHTML = tiposCache.map(t => `
+    <div class="card ct-item">
+      <span class="ct-cor ct-cor-${t.cor}"></span>
+      <div class="ct-info">
+        <div class="ct-nome">${t.nome}${t.protegido ? ' <span class="badge badge-azul" style="margin-left:6px;">usado pelo sistema</span>' : ""}</div>
+        <div class="ct-sub">
+          <span class="ct-severidade">
+            ${[0,1,2,3].map(n => `<span class="${n <= t.severidade ? 'ativo' : ''}"></span>`).join("")}
+          </span>
+          &nbsp;severidade ${t.severidade}
+        </div>
+      </div>
+      <div class="ct-acoes">
+        <button class="btn btn-sm btn-secundario" onclick="abrirModalTipo('${t.id}')">Editar</button>
+        ${t.protegido ? "" : `<button class="btn btn-sm btn-perigo" onclick="excluirTipo('${t.id}')">Excluir</button>`}
+      </div>
+    </div>
+  `).join("") || `<div class="estado-vazio"><div class="estado-vazio-titulo">Nenhum tipo cadastrado.</div></div>`;
+}
+
+function renderCores(corSelecionada) {
+  document.getElementById("mt-cores").innerHTML = CORES.map(c => `
+    <label><input type="radio" name="mt-cor" value="${c}" ${c === corSelecionada ? "checked" : ""}>
+      <span class="ct-cor ct-cor-${c}" style="display:inline-block;"></span> ${c}
+    </label>
+  `).join("");
+}
+
+function abrirModalTipo(tipoId) {
+  tipoEditandoId = tipoId || null;
+  const tipo = tipoId ? tiposCache.find(t => t.id === tipoId) : null;
+
+  document.getElementById("mt-titulo").textContent = tipo ? `Editar tipo — ${tipo.nome}` : "Novo tipo de ocorrência";
+  document.getElementById("mt-nome").value = tipo ? tipo.nome : "";
+  document.getElementById("mt-severidade").value = tipo ? tipo.severidade : 1;
+  renderCores(tipo ? tipo.cor : "azul");
+
+  document.getElementById("dialogo-tipo").showModal();
+}
+
+async function salvarTipo() {
+  const nome = document.getElementById("mt-nome").value.trim();
+  const cor = document.querySelector('input[name="mt-cor"]:checked')?.value;
+  const severidade = parseInt(document.getElementById("mt-severidade").value, 10);
+
+  if (!nome) { mostrarAlerta("Dê um nome ao tipo.", "aviso"); return; }
+
+  mostrarSpinner("btn-salvar-tipo");
+  const r = tipoEditandoId
+    ? await api("put", `/ocorrencias/api/tipos/${tipoEditandoId}`, { nome, cor, severidade })
+    : await api("post", "/ocorrencias/api/tipos", { nome, cor, severidade });
+  ocultarSpinner("btn-salvar-tipo");
+
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao salvar.", "erro", 6000); return; }
+
+  document.getElementById("dialogo-tipo").close();
+  mostrarAlerta("Tipo salvo.", "sucesso");
+  carregarTipos();
+}
+
+async function excluirTipo(tipoId) {
+  const ok = await confirmarAcao({
+    titulo: "Excluir tipo de ocorrência?",
+    texto: "Só é possível excluir tipos que não têm nenhuma ocorrência registrada com eles no momento.",
+    rotuloConfirmar: "Excluir",
+    perigoso: true,
+  });
+  if (!ok) return;
+  const r = await api("delete", `/ocorrencias/api/tipos/${tipoId}`);
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao excluir.", "erro", 6000); return; }
+  mostrarAlerta("Tipo excluído.", "sucesso");
+  carregarTipos();
+}
+</script>
+{% endblock %}
