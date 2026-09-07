@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+{% block titulo %}Dispositivos IoT{% endblock %}
+{% block topbar_titulo %}<svg class='icon'><use href='#i-antenna'></use></svg> Configuração de Dispositivos IoT{% endblock %}
+
+{% block estilos %}
+<style>
+.secao-iot { margin-bottom: 28px; }
+.secao-iot-titulo { font-family:var(--fonte-display); font-weight:800; font-size:1.05rem; margin-bottom:4px; display:flex; align-items:center; gap:8px; }
+.secao-iot-sub { font-size:.82rem; color:var(--texto-secundario); margin-bottom:16px; }
+
+.linha-config { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:16px; }
+
+.token-box { display:flex; gap:8px; align-items:center; }
+.token-valor { font-family:var(--fonte-mono); font-size:.8rem; background:var(--fundo); padding:8px 12px; border-radius:var(--raio); flex:1; overflow-x:auto; white-space:nowrap; color:var(--texto-secundario); }
+.btn-gerar-token { padding:8px 12px; border:1.5px solid var(--borda-forte); border-radius:var(--raio); background:var(--card); cursor:pointer; font-size:.78rem; font-weight:700; color:var(--texto-secundario); white-space:nowrap; }
+.btn-gerar-token:hover { border-color:var(--vermelho); color:var(--vermelho); }
+
+.grade-dispositivos { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; margin-top:6px; }
+.dispositivo-card { background:var(--fundo); border:1px solid var(--borda); border-radius:var(--raio-lg); padding:14px; }
+.dispositivo-card-topo { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
+.dispositivo-card-nome { font-weight:700; font-size:.9rem; }
+.dispositivo-card-id { font-family:var(--fonte-mono); font-size:.7rem; color:var(--texto-mudo); }
+.dispositivo-card-detalhe { font-size:.78rem; color:var(--texto-secundario); margin-bottom:8px; }
+.dispositivo-card-acoes { display:flex; gap:6px; flex-wrap:wrap; }
+.dispositivo-card-acoes button { padding:5px 9px; font-size:.7rem; border-radius:6px; border:none; cursor:pointer; font-weight:700; }
+
+.card-add-mini {
+  border: 2px dashed var(--borda-forte); display:flex; align-items:center; justify-content:center;
+  min-height:80px; cursor:pointer; color:var(--texto-mudo); font-weight:700; font-size:.8rem;
+  border-radius:var(--raio-lg); background:transparent;
+}
+.card-add-mini:hover { border-color:var(--borda-forte); color:var(--texto); background:var(--bg-fundo2); }
+
+.dias-semana { display:flex; gap:6px; flex-wrap:wrap; }
+.dia-chip { padding:6px 12px; border-radius:999px; border:1.5px solid var(--borda-forte); background:var(--card); font-size:.78rem; font-weight:700; cursor:pointer; color:var(--texto-secundario); }
+.dia-chip.ativo { border-color:var(--verde); background:var(--verde-claro); color:var(--verde); }
+
+.overlay { display:none; position:fixed; inset:0; background:rgba(8,9,11,.5); z-index:300; align-items:center; justify-content:center; padding:16px; backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px); }
+.overlay.aberto { display:flex; }
+.modal {
+  background: rgba(32, 33, 36, 0.72);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius:16px; width:100%; max-width:400px; padding:24px;
+  box-shadow: var(--sombra-lg), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.modal-topo { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; }
+.modal-titulo { font-family:var(--fonte-display); font-weight:800; font-size:1.05rem; }
+.modal-fechar { background:var(--fundo);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:.9rem; }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+
+<div class="alerta alerta-info">
+  <span><svg class='icon'><use href='#i-info'></use></svg></span>
+  <span>Trocar o token de um dispositivo exige atualizar o firmware do ESP32 correspondente com o novo valor — ele só é mostrado uma vez aqui.</span>
+</div>
+
+<div class="card secao-iot">
+  <div class="secao-iot-titulo"><svg class='icon'><use href='#i-droplet'></use></svg> Sensores de nível de água</div>
+  <div class="secao-iot-sub">Bebedouros e cisternas monitorados por sensor ultrassônico.</div>
+
+  <div class="grade-dispositivos" id="grade-agua">
+    <div class="text-mudo">Carregando…</div>
+  </div>
+</div>
+
+<div class="card secao-iot">
+  <div class="secao-iot-titulo"><svg class='icon'><use href='#i-door'></use></svg> Portões automatizados</div>
+  <div class="secao-iot-sub">Um controlador ESP32 comanda todos os portões cadastrados abaixo.</div>
+
+  <div class="linha-config">
+    <div class="campo">
+      <label>Hardware</label>
+      <input type="text" id="pt-hardware">
+    </div>
+    <div class="campo">
+      <label>Horário de abertura</label>
+      <input type="time" id="pt-abertura">
+    </div>
+    <div class="campo">
+      <label>Horário de fechamento</label>
+      <input type="time" id="pt-fechamento">
+    </div>
+  </div>
+  <button class="btn btn-secundario btn-sm" onclick="salvarPortoesConfig()" id="btn-salvar-portoes">Salvar configuração</button>
+
+  <div class="campo" style="margin-top:18px;">
+    <label>Token do dispositivo</label>
+    <div class="token-box">
+      <div class="token-valor" id="pt-token">—</div>
+      <button class="btn-gerar-token" onclick="gerarTokenPortoes()"><svg class='icon'><use href='#i-refresh'></use></svg> Gerar novo token</button>
+    </div>
+  </div>
+
+  <div class="secao-iot-sub" style="margin:16px 0 8px;">Portões cadastrados</div>
+  <div class="grade-dispositivos" id="grade-portoes"></div>
+</div>
+
+<div class="card secao-iot">
+  <div class="secao-iot-titulo"><svg class='icon'><use href='#i-snowflake'></use></svg> Ar-condicionado</div>
+  <div class="secao-iot-sub">Um controlador ESP32 com módulo IR comanda todos os aparelhos.</div>
+
+  <div class="linha-config">
+    <div class="campo">
+      <label>Nome</label>
+      <input type="text" id="ac-nome">
+    </div>
+    <div class="campo">
+      <label>Hardware</label>
+      <input type="text" id="ac-hardware">
+    </div>
+    <div class="campo">
+      <label>Quantidade de aparelhos</label>
+      <input type="number" id="ac-quantidade" min="1">
+    </div>
+    <div class="campo">
+      <label>Horário de ligar (automação)</label>
+      <input type="time" id="ac-horario">
+    </div>
+  </div>
+
+  <div class="campo">
+    <label>Dias da automação</label>
+    <div class="dias-semana" id="ac-dias">
+      <div class="dia-chip" data-dia="0" onclick="alternarDia(this)">Seg</div>
+      <div class="dia-chip" data-dia="1" onclick="alternarDia(this)">Ter</div>
+      <div class="dia-chip" data-dia="2" onclick="alternarDia(this)">Qua</div>
+      <div class="dia-chip" data-dia="3" onclick="alternarDia(this)">Qui</div>
+      <div class="dia-chip" data-dia="4" onclick="alternarDia(this)">Sex</div>
+      <div class="dia-chip" data-dia="5" onclick="alternarDia(this)">Sáb</div>
+      <div class="dia-chip" data-dia="6" onclick="alternarDia(this)">Dom</div>
+    </div>
+  </div>
+
+  <button class="btn btn-secundario btn-sm" onclick="salvarArCondicionadoConfig()" id="btn-salvar-ac">Salvar configuração</button>
+
+  <div class="campo" style="margin-top:18px;">
+    <label>Token do dispositivo</label>
+    <div class="token-box">
+      <div class="token-valor" id="ac-token">—</div>
+      <button class="btn-gerar-token" onclick="gerarTokenAC()"><svg class='icon'><use href='#i-refresh'></use></svg> Gerar novo token</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="overlay" id="overlay-sensor" onclick="fecharOverlaySensorFora(event)">
+  <div class="modal">
+    <div class="modal-topo">
+      <div class="modal-titulo" id="ms-titulo"><svg class='icon'><use href='#i-plus'></use></svg> Novo sensor de água</div>
+      <button class="modal-fechar" onclick="fecharOverlaySensor()"><svg class='icon'><use href='#i-close'></use></svg></button>
+    </div>
+    <div class="campo"><label>Nome</label><input type="text" id="ms-nome" placeholder="Ex: Bebedouro — Quadra"></div>
+    <div class="campo"><label>Hardware</label><input type="text" id="ms-hardware" value="ESP32 + JSN-SR04T"></div>
+    <div class="campo"><label>Nível mínimo de alerta (%)</label><input type="number" id="ms-limite" value="20" min="0" max="100"></div>
+    <button class="btn btn-primario w-full" id="btn-salvar-sensor" onclick="salvarSensor()">Salvar</button>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-portao" onclick="fecharOverlayPortaoFora(event)">
+  <div class="modal">
+    <div class="modal-topo">
+      <div class="modal-titulo"><svg class='icon'><use href='#i-plus'></use></svg> Novo portão</div>
+      <button class="modal-fechar" onclick="fecharOverlayPortao()"><svg class='icon'><use href='#i-close'></use></svg></button>
+    </div>
+    <div class="campo"><label>Nome</label><input type="text" id="mp-nome" placeholder="Ex: Portão dos Fundos"></div>
+    <button class="btn btn-primario w-full" id="btn-salvar-portao" onclick="salvarPortao()">Salvar</button>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let dispositivosCache = null;
+let sensorEditandoId = null;
+
+document.addEventListener("DOMContentLoaded", carregarDispositivos);
+
+async function carregarDispositivos() {
+  const r = await api("get", "/admin/api/dispositivos-iot");
+  if (!r.ok) { mostrarAlerta("Erro ao carregar dispositivos.", "erro"); return; }
+  dispositivosCache = r.dados;
+  renderizarTudo();
+}
+
+function renderizarTudo() {
+  const d = dispositivosCache;
+
+  let htmlAgua = d.agua.sensores.map(s => `
+    <div class="dispositivo-card">
+      <div class="dispositivo-card-topo">
+        <div><div class="dispositivo-card-nome">${s.nome}</div><div class="dispositivo-card-id">${s.id}</div></div>
+      </div>
+      <div class="dispositivo-card-detalhe">${s.hardware} · alerta abaixo de ${s.limite_minimo}%</div>
+      <div class="dispositivo-card-acoes">
+        <button style="background:var(--azul-claro);color:var(--azul);" onclick="abrirEdicaoSensor('${s.id}')">Editar</button>
+        <button style="background:var(--fundo);color:var(--texto-secundario);border:1px solid var(--borda-forte);" onclick="gerarTokenSensor('${s.id}')"><svg class='icon'><use href='#i-refresh'></use></svg> Token</button>
+        <button style="background:var(--vermelho-claro);color:var(--vermelho);" onclick="removerSensor('${s.id}')">Remover</button>
+      </div>
+    </div>`).join("");
+  htmlAgua += `<div class="card-add-mini" onclick="abrirCriacaoSensor()"><svg class='icon'><use href='#i-plus'></use></svg> Novo sensor</div>`;
+  document.getElementById("grade-agua").innerHTML = htmlAgua;
+
+  document.getElementById("pt-hardware").value   = d.portoes.hardware || "";
+  document.getElementById("pt-abertura").value   = d.portoes.horario_abertura || "";
+  document.getElementById("pt-fechamento").value = d.portoes.horario_fechamento || "";
+  document.getElementById("pt-token").textContent = d.portoes.token;
+
+  let htmlPortoes = d.portoes.lista.map(p => `
+    <div class="dispositivo-card">
+      <div class="dispositivo-card-nome">${p.nome}</div>
+      <div class="dispositivo-card-id">${p.id}</div>
+      <div class="dispositivo-card-acoes" style="margin-top:8px;">
+        <button style="background:var(--vermelho-claro);color:var(--vermelho);" onclick="removerPortao('${p.id}')">Remover</button>
+      </div>
+    </div>`).join("");
+  htmlPortoes += `<div class="card-add-mini" onclick="abrirOverlayPortao()"><svg class='icon'><use href='#i-plus'></use></svg> Novo portão</div>`;
+  document.getElementById("grade-portoes").innerHTML = htmlPortoes;
+
+  document.getElementById("ac-nome").value       = d.ar_condicionado.nome || "";
+  document.getElementById("ac-hardware").value   = d.ar_condicionado.hardware || "";
+  document.getElementById("ac-quantidade").value = d.ar_condicionado.quantidade || 1;
+  document.getElementById("ac-horario").value    = d.ar_condicionado.horario_ligar || "";
+  document.getElementById("ac-token").textContent = d.ar_condicionado.token;
+
+  document.querySelectorAll("#ac-dias .dia-chip").forEach(chip => {
+    const dia = parseInt(chip.dataset.dia);
+    chip.classList.toggle("ativo", (d.ar_condicionado.dias_semana_automacao || []).includes(dia));
+  });
+}
+
+function alternarDia(chip) { chip.classList.toggle("ativo"); }
+
+function abrirCriacaoSensor() {
+  sensorEditandoId = null;
+  document.getElementById("ms-titulo").innerHTML = '<svg class="icon"><use href="#i-plus"></use></svg> Novo sensor de água';
+  document.getElementById("ms-nome").value = "";
+  document.getElementById("ms-hardware").value = "ESP32 + JSN-SR04T";
+  document.getElementById("ms-limite").value = 20;
+  document.getElementById("overlay-sensor").classList.add("aberto");
+}
+
+function abrirEdicaoSensor(id) {
+  const s = dispositivosCache.agua.sensores.find(x => x.id === id);
+  if (!s) return;
+  sensorEditandoId = id;
+  document.getElementById("ms-titulo").innerHTML = `<svg class="icon"><use href="#i-edit"></use></svg> Editar: ${s.nome}`;
+  document.getElementById("ms-nome").value = s.nome;
+  document.getElementById("ms-hardware").value = s.hardware;
+  document.getElementById("ms-limite").value = s.limite_minimo;
+  document.getElementById("overlay-sensor").classList.add("aberto");
+}
+
+async function salvarSensor() {
+  const nome = document.getElementById("ms-nome").value.trim();
+  const hardware = document.getElementById("ms-hardware").value.trim();
+  const limite_minimo = document.getElementById("ms-limite").value;
+  if (!nome) { mostrarAlerta("Informe o nome do sensor.", "aviso"); return; }
+
+  mostrarSpinner("btn-salvar-sensor");
+  let r;
+  if (sensorEditandoId) {
+    r = await api("put", `/admin/api/dispositivos-iot/agua/sensores/${sensorEditandoId}`, { nome, hardware, limite_minimo });
+  } else {
+    r = await api("post", "/admin/api/dispositivos-iot/agua/sensores", { nome, hardware, limite_minimo });
+  }
+  ocultarSpinner("btn-salvar-sensor");
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao salvar.", "erro"); return; }
+
+  mostrarAlerta(sensorEditandoId ? "Sensor atualizado!" : `Sensor criado! Token: ${r.dados.sensor.token}`, "sucesso", sensorEditandoId ? 3000 : 8000);
+  fecharOverlaySensor();
+  carregarDispositivos();
+}
+
+async function removerSensor(id) {
+  const ok = await confirmarAcao({ titulo: "Remover este sensor?", texto: "O ESP32 correspondente deixará de enviar leituras válidas.", rotuloConfirmar: "Remover", perigoso: true });
+  if (!ok) return;
+  const r = await api("delete", `/admin/api/dispositivos-iot/agua/sensores/${id}`);
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro.", "erro"); return; }
+  mostrarAlerta("Sensor removido.", "sucesso");
+  carregarDispositivos();
+}
+
+async function gerarTokenSensor(id) {
+  const ok = await confirmarAcao({ titulo: "Gerar novo token?", texto: "Você precisará atualizar o firmware do ESP32 com o novo valor.", rotuloConfirmar: "Gerar token", perigoso: true });
+  if (!ok) return;
+  const r = await api("post", `/admin/api/dispositivos-iot/agua/sensores/${id}/gerar-token`);
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro.", "erro"); return; }
+  mostrarAlerta(`Novo token: ${r.dados.token}`, "sucesso", 8000);
+  carregarDispositivos();
+}
+
+function fecharOverlaySensor() { document.getElementById("overlay-sensor").classList.remove("aberto"); }
+function fecharOverlaySensorFora(e) { if (e.target.id === "overlay-sensor") fecharOverlaySensor(); }
+
+async function salvarPortoesConfig() {
+  const hardware = document.getElementById("pt-hardware").value.trim();
+  const horario_abertura = document.getElementById("pt-abertura").value;
+  const horario_fechamento = document.getElementById("pt-fechamento").value;
+
+  mostrarSpinner("btn-salvar-portoes");
+  const r = await api("put", "/admin/api/dispositivos-iot/portoes", { hardware, horario_abertura, horario_fechamento });
+  ocultarSpinner("btn-salvar-portoes");
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao salvar.", "erro"); return; }
+  mostrarAlerta("Configuração dos portões salva!", "sucesso");
+  carregarDispositivos();
+}
+
+async function gerarTokenPortoes() {
+  const ok = await confirmarAcao({ titulo: "Gerar novo token?", texto: "Você precisará atualizar o firmware do ESP32 com o novo valor.", rotuloConfirmar: "Gerar token", perigoso: true });
+  if (!ok) return;
+  const r = await api("post", "/admin/api/dispositivos-iot/portoes/gerar-token");
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro.", "erro"); return; }
+  mostrarAlerta(`Novo token: ${r.dados.token}`, "sucesso", 8000);
+  carregarDispositivos();
+}
+
+function abrirOverlayPortao() { document.getElementById("mp-nome").value = ""; document.getElementById("overlay-portao").classList.add("aberto"); }
+function fecharOverlayPortao() { document.getElementById("overlay-portao").classList.remove("aberto"); }
+function fecharOverlayPortaoFora(e) { if (e.target.id === "overlay-portao") fecharOverlayPortao(); }
+
+async function salvarPortao() {
+  const nome = document.getElementById("mp-nome").value.trim();
+  if (!nome) { mostrarAlerta("Informe o nome do portão.", "aviso"); return; }
+  mostrarSpinner("btn-salvar-portao");
+  const r = await api("post", "/admin/api/dispositivos-iot/portoes/lista", { nome });
+  ocultarSpinner("btn-salvar-portao");
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro.", "erro"); return; }
+  mostrarAlerta("Portão adicionado!", "sucesso");
+  fecharOverlayPortao();
+  carregarDispositivos();
+}
+
+async function removerPortao(id) {
+  const ok = await confirmarAcao({ titulo: "Remover este portão?", rotuloConfirmar: "Remover", perigoso: true });
+  if (!ok) return;
+  const r = await api("delete", `/admin/api/dispositivos-iot/portoes/lista/${id}`);
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro.", "erro"); return; }
+  mostrarAlerta("Portão removido.", "sucesso");
+  carregarDispositivos();
+}
+
+async function salvarArCondicionadoConfig() {
+  const nome = document.getElementById("ac-nome").value.trim();
+  const hardware = document.getElementById("ac-hardware").value.trim();
+  const quantidade = document.getElementById("ac-quantidade").value;
+  const horario_ligar = document.getElementById("ac-horario").value;
+  const dias_semana_automacao = [...document.querySelectorAll("#ac-dias .dia-chip.ativo")].map(c => parseInt(c.dataset.dia));
+
+  mostrarSpinner("btn-salvar-ac");
+  const r = await api("put", "/admin/api/dispositivos-iot/ar-condicionado", {
+    nome, hardware, quantidade, horario_ligar, dias_semana_automacao
+  });
+  ocultarSpinner("btn-salvar-ac");
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao salvar.", "erro"); return; }
+  mostrarAlerta("Configuração do ar-condicionado salva!", "sucesso");
+  carregarDispositivos();
+}
+
+async function gerarTokenAC() {
+  const ok = await confirmarAcao({ titulo: "Gerar novo token?", texto: "Você precisará atualizar o firmware do ESP32 com o novo valor.", rotuloConfirmar: "Gerar token", perigoso: true });
+  if (!ok) return;
+  const r = await api("post", "/admin/api/dispositivos-iot/ar-condicionado/gerar-token");
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro.", "erro"); return; }
+  mostrarAlerta(`Novo token: ${r.dados.token}`, "sucesso", 8000);
+  carregarDispositivos();
+}
+</script>
+{% endblock %}
