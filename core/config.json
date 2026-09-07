@@ -1,0 +1,27 @@
+{
+  "caminho_base": "/home/claude/smartcampus",
+  "porta_api": 80,
+  "host_api": "0.0.0.0",
+  "encoding": "utf-8",
+  "versao": "v3.02.16",
+  "nome_escola": "Escola Técnica Estadual Prof. Lucilo Ávila Pessoa",
+  "sigla_escola": "ETEPLAP",
+  "bairro_cidade": "Iputinga",
+  "modulos_ativos": [
+    "sinal",
+    "agendamento",
+    "biblioteca",
+    "secretaria_portaria",
+    "iot",
+    "ocorrencias",
+    "evasao",
+    "chaves",
+    "chamados",
+    "monitoramento",
+    "alunos",
+    "pontualidade"
+  ],
+  "sinal_modo": "local",
+  "sinal_url": "http://127.0.0.1:5001",
+  "https_habilitado": false
+}
