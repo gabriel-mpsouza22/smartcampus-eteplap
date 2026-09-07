@@ -1,0 +1,105 @@
+COMO GERAR O INSTALADOR GRÁFICO (SmartCampus_Instalador.exe)
+====================================================================
+Isto é feito na SUA máquina (equipe), uma vez por versão lançada — o
+cliente final só recebe o resultado (SmartCampus_Instalador.exe), nunca
+precisa saber que existe Inno Setup por trás disso.
+
+--------------------------------------------------------------------
+PASSO 1 — Instalar o Inno Setup (uma vez só, fica instalado)
+--------------------------------------------------------------------
+Baixe em: https://jrsoftware.org/isdl.php
+(É gratuito, de um projeto open source bem estabelecido — não é o
+SmartCampus, é só a ferramenta que "empacota" o instalador.)
+Instale normalmente, próximo > próximo > concluir.
+
+--------------------------------------------------------------------
+PASSO 2 — Baixar o instalador do WebView2 Runtime (uma vez só)
+--------------------------------------------------------------------
+Isso é o componente que resolveu o problema de "o programa abre e
+fecha na hora" — o instalador final vai aplicá-lo sozinho em quem
+ainda não tiver.
+
+1. Acesse: https://developer.microsoft.com/microsoft-edge/webview2/
+2. Procure a seção "Distribuição" / "Deployment" e baixe o link
+   chamado "Evergreen Bootstrapper" (arquivo pequeno, ~2 MB,
+   chamado MicrosoftEdgeWebview2Setup.exe).
+3. Coloque esse arquivo exatamente nesta pasta:
+   instalador_gui\MicrosoftEdgeWebview2Setup.exe
+   (mesmo nome, mesma pasta onde está o SmartCampus.iss)
+
+Isso só precisa ser feito de novo se a Microsoft atualizar o link —
+não precisa refazer a cada versão do SmartCampus.
+
+--------------------------------------------------------------------
+PASSO 3 — Gerar o SmartCampus.exe normalmente
+--------------------------------------------------------------------
+Como sempre: python build_exe.py (dentro do venv com Python 3.13).
+O resultado precisa estar em: dist_exe\SmartCampus.exe
+— é exatamente onde o build_exe.py já deixa, então nenhum passo
+extra é necessário aqui.
+
+--------------------------------------------------------------------
+PASSO 4 — Compilar o instalador
+--------------------------------------------------------------------
+Opção A (mais fácil): dê duplo clique em instalador_gui\SmartCampus.iss
+— isso abre o Inno Setup Compiler com o script já carregado. Clique no
+botão verde "Compile" (ou tecla F9) e aguarde.
+
+Opção B (linha de comando, se preferir automatizar depois):
+    "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" instalador_gui\SmartCampus.iss
+
+--------------------------------------------------------------------
+RESULTADO
+--------------------------------------------------------------------
+O instalador final aparece em:
+    instalador_gui\Saida\SmartCampus_Instalador.exe
+
+É ESSE arquivo (não o SmartCampus.exe cru) que você entrega ao
+cliente/escola a partir de agora.
+
+--------------------------------------------------------------------
+O QUE O CLIENTE VÊ AO ABRIR ESSE INSTALADOR
+--------------------------------------------------------------------
+1. Pede permissão de administrador (padrão do Windows, uma caixa de
+   diálogo automática — "Deseja permitir que este aplicativo faça
+   alterações no dispositivo?"). Isso é normal e só acontece nesse
+   momento, nunca de novo ao abrir o programa depois.
+2. Tela de boas-vindas em português.
+3. Escolha da pasta de instalação (já vem preenchida com um valor
+   sensato — C:\ProgramData\SmartCampus — quem não entende do assunto
+   pode simplesmente clicar em "Avançar" sem mudar nada).
+4. Pergunta se já tem um arquivo de licença (licenca.smc) — pode
+   pular se ainda não tiver.
+5. Confirma se quer ícone na área de trabalho (já vem marcado).
+6. Clica em "Instalar".
+7. Barra de progresso — nesse momento, se o WebView2 não estiver
+   presente, ele é instalado automaticamente e sem perguntar nada
+   (mensagem de status avisa "Verificando componente necessário...").
+8. Tela final, com a opção "Abrir o Smart Campus agora" já marcada.
+
+Nenhuma etapa exige conhecimento técnico do cliente.
+
+--------------------------------------------------------------------
+SE ALGO DER ERRADO AO COMPILAR
+--------------------------------------------------------------------
+- "Arquivo não encontrado: ..\dist_exe\SmartCampus.exe" → rode o
+  build_exe.py antes de compilar o instalador (passo 3).
+- "Arquivo não encontrado: MicrosoftEdgeWebview2Setup.exe" → o
+  instalador ainda compila (esse arquivo é opcional, marcado como
+  "skipifsourcedoesntexist" no script), mas SEM a instalação
+  automática do WebView2 — refaça o passo 2 antes de distribuir de
+  verdade para um cliente.
+- Erros de sintaxe do Pascal Script (bloco [Code]) → normalmente
+  aparecem com o número exato da linha problemática direto na tela
+  do Inno Setup Compiler; me envie a mensagem completa se acontecer.
+
+--------------------------------------------------------------------
+ATUALIZANDO A VERSÃO NO FUTURO
+--------------------------------------------------------------------
+Antes de gerar uma nova versão, edite esta linha no topo do
+SmartCampus.iss:
+    #define MyAppVersion "3.02.16"
+para a versão nova (ex.: "3.03.0"). O AppId (linha logo abaixo) NUNCA
+deve mudar — é o que garante que uma atualização seja reconhecida
+como upgrade da mesma instalação, e não como um programa novo e
+diferente aparecendo duplicado no Painel de Controle do cliente.
