@@ -1,0 +1,268 @@
+/* ══════════════════════════════════════════════════════════════
+   SMART CAMPUS — camada "sistema operacional"
+   Referência: densidade de informação + acabamento do ecossistema
+   Apple (macOS/iOS/iPadOS) e do padrão que apps como o Foccum
+   seguem. Vidro discreto (nunca colorido/neon), cantos contínuos,
+   sombras suaves e difusas, tipografia com peso controlado,
+   movimento tipo "spring" em vez de linear.
+   Carregado DEPOIS de style.css — só adiciona acabamento.
+   ══════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+:root {
+  /* vidro neutro — sempre um cinza translúcido, nunca colorido */
+  --vidro-1:        rgba(36, 37, 40, 0.6);
+  --vidro-2:        rgba(30, 31, 34, 0.82);
+  --vidro-borda:    rgba(255, 255, 255, 0.07);
+  --vidro-borda-forte: rgba(255, 255, 255, 0.13);
+  --vidro-realce:   rgba(255, 255, 255, 0.045);
+
+  /* sombras "Apple": longas, difusas, baixa opacidade — profundidade
+     sem chamar atenção pra si mesma */
+  --sombra-1: 0 1px 2px rgba(0,0,0,0.24);
+  --sombra-2: 0 8px 24px -6px rgba(0,0,0,0.4);
+  --sombra-3: 0 24px 56px -16px rgba(0,0,0,0.55);
+
+  /* cantos "contínuos" (squircle-like): raio maior nos containers
+     grandes, sempre par com o conteúdo interno também arredondado */
+  --raio-xl:  20px;
+  --raio-2xl: 26px;
+
+  /* easing tipo spring — overshoot leve, sem ser bobo */
+  --spring:      cubic-bezier(0.34, 1.28, 0.64, 1);
+  --spring-suave: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── base tipográfica: SF Pro não está disponível na web, então
+   usamos Inter com o feature-set e tracking mais próximos do
+   look da Apple (peso alto em títulos, tracking negativo) ──── */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* fundo: quase chapado, com uma respiração de luz muito sutil no
+   topo — como o vibrancy do macOS, não um "wallpaper" de app */
+body {
+  background:
+    radial-gradient(1100px 480px at 50% -12%, rgba(255,255,255,0.035), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+.secao-titulo, .login-titulo, .card-titulo, .topbar-titulo, .sidebar-logo-nome {
+  letter-spacing: -0.02em;
+}
+.secao-titulo { font-weight: 800; }
+
+
+/* ── sidebar: vibrancy de macOS, título compacto e nítido ─────── */
+.sidebar {
+  background: var(--vidro-2);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border-right: 1px solid var(--vidro-borda);
+}
+
+.sidebar-logo-imagem {
+  border-radius: 8px;
+  filter: drop-shadow(var(--sombra-1));
+}
+
+.sidebar-nav { padding: 8px 8px; }
+.sidebar-nav a {
+  border-radius: 10px;
+  padding: 7px 9px;
+  transition: background 200ms var(--spring-suave), color 200ms var(--spring-suave);
+}
+.sidebar-nav a.ativo {
+  background: rgba(255,255,255,0.09);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
+}
+.sidebar-nav a:hover:not(.ativo) { background: rgba(255,255,255,0.045); }
+
+.sidebar-avatar { box-shadow: 0 0 0 2px rgba(255,255,255,0.06); }
+
+
+/* ── topbar: barra de título flutuante, à la macOS toolbar ────── */
+.topbar {
+  background: rgba(23, 24, 26, 0.68);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid var(--vidro-borda);
+}
+
+
+/* ── cards: superfície "elevada" sutil, canto contínuo maior,
+   sombra longa e suave em vez de borda pesada no hover ──────── */
+.card, .card-modulo {
+  border-radius: var(--raio-xl);
+  border: 1px solid var(--vidro-borda);
+  background:
+    linear-gradient(180deg, var(--vidro-realce), rgba(255,255,255,0) 30%),
+    var(--card);
+  transition: box-shadow 320ms var(--spring-suave), transform 320ms var(--spring-suave), border-color 320ms var(--spring-suave);
+}
+.card:hover { box-shadow: var(--sombra-2); }
+
+.card-modulo {
+  transition: box-shadow 280ms var(--spring-suave), transform 280ms var(--spring), border-color 280ms var(--spring-suave);
+}
+.card-modulo:hover {
+  border-color: var(--vidro-borda-forte);
+  box-shadow: var(--sombra-2);
+  transform: translateY(-2px);
+}
+.card-modulo:active { transform: translateY(0) scale(0.985); transition-duration: 120ms; }
+
+.icone-caixa {
+  border-radius: 10px;
+  background: rgba(255,255,255,0.045);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
+  transition: transform 260ms var(--spring);
+}
+.card-modulo:hover .icone-caixa { transform: scale(1.06); }
+
+
+/* ── botões: peso e "click" tátil, sem shine artificial ───────── */
+.btn {
+  border-radius: 980px; /* pill, como os controles do iOS/macOS */
+  transition: background 200ms var(--spring-suave), opacity 200ms var(--spring-suave),
+              transform 140ms var(--spring), box-shadow 200ms var(--spring-suave);
+}
+.btn-primario {
+  box-shadow: var(--sombra-1);
+}
+.btn-primario:hover { box-shadow: var(--sombra-2); }
+.btn:active { transform: scale(0.96); }
+
+.btn-secundario {
+  background: rgba(255,255,255,0.045);
+  backdrop-filter: blur(10px);
+  border-color: var(--vidro-borda-forte);
+}
+.btn-secundario:hover { background: rgba(255,255,255,0.075); }
+
+
+/* ── campos: foco nítido tipo iOS, sem glow colorido ──────────── */
+.campo input, .campo select, .campo textarea,
+input[type="text"], input[type="password"], input[type="number"], input[type="email"],
+input[type="date"], input[type="time"], input[type="search"], input[type="tel"], input[type="url"],
+select, textarea {
+  border-radius: 10px;
+  transition: border-color 180ms var(--spring-suave), box-shadow 180ms var(--spring-suave), background 180ms var(--spring-suave);
+}
+.campo input:focus, .campo select:focus, .campo textarea:focus,
+input:focus, select:focus, textarea:focus {
+  border-color: rgba(255,255,255,0.28);
+  box-shadow: 0 0 0 4px rgba(255,255,255,0.06);
+}
+
+
+/* ── stat boxes: número grande, cartão "widget-like" ──────────── */
+.stat-box {
+  border-radius: var(--raio-xl);
+  background: linear-gradient(180deg, var(--vidro-realce), rgba(255,255,255,0) 40%), var(--bg-fundo2);
+  border: 1px solid var(--vidro-borda);
+  transition: transform 220ms var(--spring), border-color 220ms var(--spring-suave);
+}
+.stat-box:hover { transform: translateY(-2px); border-color: var(--vidro-borda-forte); }
+.stat-box .stat-box-numero { letter-spacing: -0.03em; }
+
+
+/* ── segmentado: controle tipo iOS (pílula com "thumb" que desliza) */
+.segmentado {
+  border-radius: 980px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--vidro-borda);
+}
+.segmentado button {
+  border-radius: 980px;
+  transition: color 200ms var(--spring-suave), background 200ms var(--spring-suave);
+}
+.segmentado button.ativo {
+  background: rgba(255,255,255,0.1);
+  box-shadow: var(--sombra-1);
+}
+
+.filtro-chip, .chip-data {
+  border-radius: 980px;
+  transition: background 180ms var(--spring-suave), border-color 180ms var(--spring-suave), transform 160ms var(--spring);
+}
+.filtro-chip.ativo { box-shadow: var(--sombra-1); }
+.filtro-chip:active, .chip-data:active { transform: scale(0.96); }
+
+
+/* ── badges/pills: contorno interno bem sutil, sem glow ───────── */
+.badge, .pill {
+  border-radius: 7px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+}
+
+
+/* ── modal: folha de vidro central, "spring" na entrada ──────── */
+dialog.modal {
+  border-radius: var(--raio-2xl);
+  background: var(--vidro-2);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  box-shadow: var(--sombra-3);
+}
+dialog.modal[open] { animation: modal-entrar-spring 340ms var(--spring); }
+@keyframes modal-entrar-spring {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.94); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.toast {
+  border-radius: 14px;
+  background: var(--vidro-2);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: var(--sombra-3);
+}
+
+
+/* ── login: cartão de vidro central, entrada suave ────────────── */
+.login-pagina { background: var(--bg-fundo2); }
+.login-caixa {
+  border-radius: var(--raio-2xl);
+  background: linear-gradient(180deg, var(--vidro-realce), rgba(255,255,255,0) 35%), var(--card);
+  border: 1px solid var(--vidro-borda);
+  box-shadow: var(--sombra-3);
+  animation: login-entrar 420ms var(--spring-suave);
+}
+@keyframes login-entrar {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.login-emblema-imagem { filter: drop-shadow(var(--sombra-2)); }
+.login-btn { box-shadow: var(--sombra-1); }
+
+
+/* ── entrada de página: fade + leve subida, sem exagero ───────── */
+.pagina { animation: pagina-entrar 300ms var(--spring-suave); }
+@keyframes pagina-entrar {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* linhas de tabela/lista: realce translúcido neutro no hover */
+table tr:hover td { background: rgba(255,255,255,0.03); }
+.linha-item {
+  border-radius: 12px;
+  transition: border-color 180ms var(--spring-suave), transform 180ms var(--spring);
+}
+.linha-item:hover { border-color: var(--vidro-borda-forte); transform: translateX(2px); }
+
+/* checkbox/radio: alvo de toque maior, cantos consistentes com o resto */
+input[type="checkbox"] { border-radius: 6px; transition: transform 140ms var(--spring); }
+input[type="checkbox"]:active { transform: scale(0.9); }
+
+
+@media (prefers-reduced-motion: reduce) {
+  .login-caixa, .pagina, dialog.modal[open] { animation: none; }
+  .card-modulo:hover, .stat-box:hover, .linha-item:hover { transform: none; }
+}
