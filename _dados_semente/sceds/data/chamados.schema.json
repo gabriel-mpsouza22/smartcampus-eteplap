@@ -1,0 +1,23 @@
+{
+  "tabela": "chamados",
+  "colunas": [
+    { "nome": "id", "tipo": "INTEIRO", "modificadores": ["CHAVE_PRIMARIA", "AUTO"] },
+    { "nome": "titulo", "tipo": "TEXTO", "modificadores": ["NAO_NULO"] },
+    { "nome": "descricao", "tipo": "TEXTO", "modificadores": [] },
+    { "nome": "categoria", "tipo": "TEXTO", "modificadores": ["NAO_NULO"] },
+    { "nome": "local", "tipo": "TEXTO", "modificadores": ["NAO_NULO"] },
+    { "nome": "prioridade", "tipo": "TEXTO", "modificadores": ["NAO_NULO"] },
+    { "nome": "status", "tipo": "TEXTO", "modificadores": ["NAO_NULO"] },
+    { "nome": "aberto_por_id", "tipo": "INTEIRO", "modificadores": ["NAO_NULO"] },
+    { "nome": "aberto_por_nome", "tipo": "TEXTO", "modificadores": ["NAO_NULO"] },
+    { "nome": "aberto_em", "tipo": "DATA_HORA", "modificadores": ["NAO_NULO"] },
+    { "nome": "atribuido_a_id", "tipo": "INTEIRO", "modificadores": [] },
+    { "nome": "atribuido_a_nome", "tipo": "TEXTO", "modificadores": [] },
+    { "nome": "assumido_em", "tipo": "DATA_HORA", "modificadores": [] },
+    { "nome": "resolucao", "tipo": "TEXTO", "modificadores": [] },
+    { "nome": "resolvido_em", "tipo": "DATA_HORA", "modificadores": [] },
+    { "nome": "cancelado_em", "tipo": "DATA_HORA", "modificadores": [] },
+    { "nome": "motivo_cancelamento", "tipo": "TEXTO", "modificadores": [] }
+  ],
+  "criada_em": "2026-08-23T00:00:00.000000"
+}
