@@ -1,0 +1,17 @@
+{
+  "observacao": "Preencha os números com código do país+DDD (ex: 5581999990000). Sem +, espaços ou traços.",
+  "grupos": [
+    { "id": "1-redes", "nome": "1º Ano Redes",  "numero": "", "turmas": ["1A Redes", "1B Redes"] },
+    { "id": "1-adm",   "nome": "1º Ano Adm",    "numero": "", "turmas": ["1A Adm",   "1B Adm"]   },
+    { "id": "2-redes", "nome": "2º Ano Redes",  "numero": "", "turmas": ["2A Redes", "2B Redes"] },
+    { "id": "2-adm",   "nome": "2º Ano Adm",    "numero": "", "turmas": ["2A Adm",   "2B Adm"]   },
+    { "id": "3-redes", "nome": "3º Ano Redes",  "numero": "", "turmas": ["3A Redes", "3B Redes"] },
+    { "id": "3-adm",   "nome": "3º Ano Adm",    "numero": "", "turmas": ["3A Adm",   "3B Adm"]   }
+  ],
+  "motivos": {
+    "manutencao":      "Manutenção na escola",
+    "problema_sala":   "Problema na sala de aula",
+    "reuniao":         "Reunião pedagógica",
+    "professor_faltou":"Professor ausente"
+  }
+}
