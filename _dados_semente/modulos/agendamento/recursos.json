@@ -1,0 +1,88 @@
+{
+  "recursos": [
+    {
+      "id": "lab_redes",
+      "nome": "Laboratório de Redes",
+      "tipo": "laboratorio",
+      "icone": "i-monitor"
+    },
+    {
+      "id": "lab_info_01",
+      "nome": "Laboratório de Informática 01",
+      "tipo": "laboratorio",
+      "icone": "i-monitor"
+    },
+    {
+      "id": "lab_info_02",
+      "nome": "Laboratório de Informática 02",
+      "tipo": "laboratorio",
+      "icone": "i-monitor"
+    },
+    {
+      "id": "lab_admin",
+      "nome": "Laboratório de Administração",
+      "tipo": "laboratorio",
+      "icone": "i-monitor"
+    },
+    {
+      "id": "sala_multimidia",
+      "nome": "Sala Multimídia",
+      "tipo": "sala",
+      "icone": "i-projector"
+    },
+    {
+      "id": "auditorio",
+      "nome": "Auditório ETEPLAP",
+      "tipo": "espaco",
+      "icone": "i-building"
+    },
+    {
+      "id": "sala_reunioes",
+      "nome": "Sala de Reuniões",
+      "tipo": "sala",
+      "icone": "i-building"
+    },
+    {
+      "id": "projetor_01",
+      "nome": "Projetor 01",
+      "tipo": "equipamento",
+      "icone": "i-projector"
+    },
+    {
+      "id": "projetor_02",
+      "nome": "Projetor 02",
+      "tipo": "equipamento",
+      "icone": "i-projector"
+    },
+    {
+      "id": "notebook_01",
+      "nome": "Notebook 01",
+      "tipo": "equipamento",
+      "icone": "i-monitor"
+    },
+    {
+      "id": "notebook_02",
+      "nome": "Notebook 02",
+      "tipo": "equipamento",
+      "icone": "i-monitor"
+    },
+    {
+      "id": "caixa_som",
+      "nome": "Caixa de Som",
+      "tipo": "equipamento",
+      "icone": "i-box"
+    },
+    {
+      "id": "microfone",
+      "nome": "Microfone Sem Fio",
+      "tipo": "equipamento",
+      "icone": "i-mic"
+    },
+    {
+      "id": "kit_rede",
+      "nome": "Kit de Cabos de Rede",
+      "tipo": "equipamento",
+      "icone": "i-antenna"
+    }
+  ]
+}
