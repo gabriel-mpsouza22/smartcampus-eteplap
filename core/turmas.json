@@ -1,0 +1,35 @@
+{
+  "observacao": "Lista fixa de turmas da escola. Editar aqui atualiza as opções disponíveis no cadastro único de alunos, usado por Ocorrências, Biblioteca e Prevenção de Evasão. O campo \"turma\" é o identificador único de cada turma em todo o sistema — nunca repita o mesmo valor em duas linhas.",
+  "turmas": [
+    { "turma": "1ºA Redes de Computadores",          "serie": "1º Ano", "curso": "Redes de Computadores", "turno": "Integral" },
+    { "turma": "1ºB Redes de Computadores",          "serie": "1º Ano", "curso": "Redes de Computadores", "turno": "Integral" },
+    { "turma": "1ºA Administração",                  "serie": "1º Ano", "curso": "Administração",         "turno": "Integral" },
+    { "turma": "1ºB Administração",                  "serie": "1º Ano", "curso": "Administração",         "turno": "Integral" },
+
+    { "turma": "2ºA Redes de Computadores",          "serie": "2º Ano", "curso": "Redes de Computadores", "turno": "Integral" },
+    { "turma": "2ºB Redes de Computadores",          "serie": "2º Ano", "curso": "Redes de Computadores", "turno": "Integral" },
+    { "turma": "2ºA Administração",                  "serie": "2º Ano", "curso": "Administração",         "turno": "Integral" },
+    { "turma": "2ºB Administração",                  "serie": "2º Ano", "curso": "Administração",         "turno": "Integral" },
+
+    { "turma": "3ºA Redes de Computadores",          "serie": "3º Ano", "curso": "Redes de Computadores", "turno": "Integral" },
+    { "turma": "3ºB Redes de Computadores",          "serie": "3º Ano", "curso": "Redes de Computadores", "turno": "Integral" },
+    { "turma": "3ºA Administração",                  "serie": "3º Ano", "curso": "Administração",         "turno": "Integral" },
+    { "turma": "3ºB Administração",                  "serie": "3º Ano", "curso": "Administração",         "turno": "Integral" },
+
+    { "turma": "1º Módulo Logística Subsequente",                    "serie": "1º Módulo", "curso": "Logística Subsequente",                    "turno": "Noite" },
+    { "turma": "2º Módulo Logística Subsequente",                    "serie": "2º Módulo", "curso": "Logística Subsequente",                    "turno": "Noite" },
+    { "turma": "3º Módulo Logística Subsequente",                    "serie": "3º Módulo", "curso": "Logística Subsequente",                    "turno": "Noite" },
+
+    { "turma": "1º Módulo Redes de Computadores Subsequente",        "serie": "1º Módulo", "curso": "Redes de Computadores Subsequente",        "turno": "Noite" },
+    { "turma": "2º Módulo Redes de Computadores Subsequente",        "serie": "2º Módulo", "curso": "Redes de Computadores Subsequente",        "turno": "Noite" },
+    { "turma": "3º Módulo Redes de Computadores Subsequente",        "serie": "3º Módulo", "curso": "Redes de Computadores Subsequente",        "turno": "Noite" },
+
+    { "turma": "1º Módulo Administração Subsequente",                "serie": "1º Módulo", "curso": "Administração Subsequente",                "turno": "Noite" },
+    { "turma": "2º Módulo Administração Subsequente",                "serie": "2º Módulo", "curso": "Administração Subsequente",                "turno": "Noite" },
+    { "turma": "3º Módulo Administração Subsequente",                "serie": "3º Módulo", "curso": "Administração Subsequente",                "turno": "Noite" },
+
+    { "turma": "1º Módulo Empreendedorismo Digital Subsequente",     "serie": "1º Módulo", "curso": "Empreendedorismo Digital Subsequente",     "turno": "Noite" },
+    { "turma": "2º Módulo Empreendedorismo Digital Subsequente",     "serie": "2º Módulo", "curso": "Empreendedorismo Digital Subsequente",     "turno": "Noite" },
+    { "turma": "3º Módulo Empreendedorismo Digital Subsequente",     "serie": "3º Módulo", "curso": "Empreendedorismo Digital Subsequente",     "turno": "Noite" }
+  ]
+}
