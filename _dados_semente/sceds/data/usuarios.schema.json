@@ -1,0 +1,45 @@
+{
+  "tabela": "usuarios",
+  "colunas": [
+    {
+      "nome": "id",
+      "tipo": "INTEIRO",
+      "modificadores": [
+        "CHAVE_PRIMARIA",
+        "AUTO"
+      ]
+    },
+    {
+      "nome": "nome",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "perfil",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "senha_hash",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "ativo",
+      "tipo": "BOOLEANO",
+      "modificadores": []
+    },
+    {
+      "nome": "criado_em",
+      "tipo": "DATA_HORA",
+      "modificadores": []
+    }
+  ],
+  "criada_em": "2026-06-29T20:25:14.999414"
+}
