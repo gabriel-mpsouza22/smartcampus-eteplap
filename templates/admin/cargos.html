@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block titulo %}Cargos e Permissões{% endblock %}
+{% block topbar_titulo %}Cargos e Permissões{% endblock %}
+{% block topbar_acoes %}
+<button class="btn btn-primario btn-sm" onclick="abrirModalCargo()"><svg class='icon'><use href='#i-plus'></use></svg> Novo cargo</button>
+{% endblock %}
+
+{% block estilos %}
+<style>
+.cg-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; }
+.cg-card { display:flex; flex-direction:column; gap:8px; }
+.cg-card-topo { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+.cg-nome { font-weight:700; font-size:1rem; }
+.cg-base { font-size:0.76rem; color:var(--texto-mudo); }
+.cg-turnos { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
+.cg-modulos-count { font-size:0.8rem; color:var(--texto-secundario); }
+.cg-acoes { display:flex; gap:8px; margin-top:8px; }
+.cg-checklist { display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; max-height:260px; overflow-y:auto; padding:8px; border:1px solid var(--borda); border-radius:var(--raio); }
+.cg-checklist label { display:flex; align-items:center; gap:6px; font-size:0.85rem; font-weight:400; }
+.cg-turno-lista { display:flex; flex-direction:column; gap:6px; padding:8px; border:1px solid var(--borda); border-radius:var(--raio); }
+.cg-turno-lista label { display:flex; align-items:center; gap:6px; font-size:0.85rem; font-weight:400; }
+.cg-checklist label.cg-modulo-travado { opacity:0.55; cursor:not-allowed; flex-wrap:wrap; }
+.cg-modulo-cadeado { flex-shrink:0; width:14px; height:14px; color:var(--texto-mudo); }
+.cg-modulo-travado-dica { display:block; width:100%; font-size:0.72rem; color:var(--texto-mudo); margin-left:20px; }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+<div class="mb-24">
+  <p class="secao-subtitulo">
+    Cada cargo herda as permissões de rota de um perfil-base (o que ele pode ou não fazer no sistema),
+    mas você escolhe quais módulos aparecem no menu e a quais turnos ele tem acesso. Alunos, turmas e
+    números de outros turnos simplesmente não aparecem para quem tem um cargo restrito.
+  </p>
+</div>
+
+<div class="cg-grid" id="grade-cargos">
+  <div class="estado-carregando"><span class="spinner"></span> Carregando…</div>
+</div>
+
+<dialog class="modal" id="dialogo-cargo" style="max-width:560px;">
+  <div class="modal-corpo">
+    <div class="modal-titulo" id="mc-titulo">Novo cargo</div>
+
+    <div class="campo">
+      <label for="mc-nome">Nome do cargo</label>
+      <input type="text" id="mc-nome" placeholder="Ex: Coordenadora do Integral">
+    </div>
+
+    <div class="campo">
+      <label for="mc-perfil-base">Perfil-base (define o que ele pode fazer no sistema)</label>
+      <select id="mc-perfil-base" onchange="trocarPerfilBase()">
+        {% for p in perfis %}
+        <option value="{{ p }}">{{ labels_perfil[p] }}</option>
+        {% endfor %}
+      </select>
+      <p class="text-xs text-mudo" style="margin-top:4px;">
+        Não pode ser trocado depois de criado — se precisar de outra base, crie um novo cargo.
+      </p>
+    </div>
+
+    <div class="campo">
+      <label>Módulos visíveis para este cargo</label>
+      <div class="cg-checklist" id="mc-modulos"></div>
+    </div>
+
+    <div class="campo">
+      <label>Turnos que este cargo pode ver</label>
+      <div class="cg-turno-lista" id="mc-turnos"></div>
+    </div>
+  </div>
+  <div class="modal-acoes">
+    <button class="btn btn-secundario" onclick="document.getElementById('dialogo-cargo').close()">Cancelar</button>
+    <button class="btn btn-primario" id="btn-salvar-cargo" onclick="salvarCargo()">Criar cargo</button>
+  </div>
+</dialog>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CATALOGO_MODULOS = {{ catalogo_modulos | tojson }};
+const CATALOGO_MODULOS_EXIBICAO = {{ catalogo_modulos_exibicao | tojson }};
+const TURNOS_EXISTENTES = {{ turnos_existentes | tojson }};
+const LABELS_PERFIL = {{ labels_perfil | tojson }};
+let cargosCache = [];
+let cargoEditandoId = null;
+
+document.addEventListener("DOMContentLoaded", carregarCargos);
+
+async function carregarCargos() {
+  const r = await api("get", "/admin/api/cargos");
+  const alvo = document.getElementById("grade-cargos");
+  if (!r.ok) {
+    alvo.innerHTML = `<div class="estado-erro"><div class="estado-erro-titulo">Não foi possível carregar os cargos.</div></div>`;
+    return;
+  }
+  cargosCache = r.dados;
+  alvo.innerHTML = cargosCache.map(c => `
+    <div class="card cg-card">
+      <div class="cg-card-topo">
+        <div>
+          <div class="cg-nome">${c.nome}</div>
+          <div class="cg-base">Baseado em: ${LABELS_PERFIL[c.perfil_base] || c.perfil_base}${c.sistema ? " · cargo de sistema" : ""}</div>
+        </div>
+        <span class="badge ${c.escopo_turno.includes('todos') ? 'badge-azul' : 'badge-amarelo'}">
+          ${c.escopo_turno.includes('todos') ? 'Todos os turnos' : c.escopo_turno.join(', ')}
+        </span>
+      </div>
+      <div class="cg-modulos-count">${c.modulos.length} módulo(s) visível(is)</div>
+      <div class="cg-acoes">
+        <button class="btn btn-sm btn-secundario" onclick="abrirModalCargo(${c.id})">Editar</button>
+        ${c.sistema
+          ? ""
+          : `<button class="btn btn-sm btn-perigo" onclick="excluirCargo(${c.id})">Excluir</button>`}
+      </div>
+    </div>
+  `).join("") || `<div class="estado-vazio"><div class="estado-vazio-titulo">Nenhum cargo ainda.</div></div>`;
+}
+
+function renderModulosChecklist(perfilBase, marcados) {
+  const itens = CATALOGO_MODULOS_EXIBICAO[perfilBase] || [];
+  document.getElementById("mc-modulos").innerHTML = itens.map(m => {
+    if (m.contratado) {
+      return `<label><input type="checkbox" value="${m.id}" ${marcados.includes(m.id) ? "checked" : ""}> ${m.nome}</label>`;
+    }
+    return `<label class="cg-modulo-travado" title="Módulo não incluído no plano contratado desta instalação">
+      <input type="checkbox" disabled>
+      <svg class="icon cg-modulo-cadeado" aria-hidden="true"><use href="#i-lock"></use></svg>
+      ${m.nome}
+      <span class="cg-modulo-travado-dica">Não incluído no plano atual — fale com o suporte para contratar</span>
+    </label>`;
+  }).join("") || `<span class="text-xs text-mudo">Este perfil não tem módulos configuráveis.</span>`;
+}
+
+function renderTurnosChecklist(marcados) {
+  const todos = marcados.includes("todos");
+  let html = `<label><input type="checkbox" id="mc-turno-todos" onchange="toggleTurnoTodos()" ${todos ? "checked" : ""}> Todos os turnos</label>`;
+  html += TURNOS_EXISTENTES.map(t => `
+    <label><input type="checkbox" class="mc-turno-item" value="${t}" ${marcados.includes(t) ? "checked" : ""} ${todos ? "disabled" : ""}> ${t}</label>
+  `).join("");
+  document.getElementById("mc-turnos").innerHTML = html;
+}
+
+function toggleTurnoTodos() {
+  const marcado = document.getElementById("mc-turno-todos").checked;
+  document.querySelectorAll(".mc-turno-item").forEach(el => {
+    el.disabled = marcado;
+    if (marcado) el.checked = false;
+  });
+}
+
+function trocarPerfilBase() {
+  const perfilBase = document.getElementById("mc-perfil-base").value;
+  renderModulosChecklist(perfilBase, cargoEditandoId ? [] : (CATALOGO_MODULOS[perfilBase] || []).map(m => m.id));
+}
+
+function abrirModalCargo(cargoId) {
+  cargoEditandoId = cargoId || null;
+  const cargo = cargoId ? cargosCache.find(c => c.id === cargoId) : null;
+
+  document.getElementById("mc-titulo").textContent = cargo ? `Editar cargo — ${cargo.nome}` : "Novo cargo";
+  document.getElementById("btn-salvar-cargo").textContent = cargo ? "Salvar alterações" : "Criar cargo";
+  document.getElementById("mc-nome").value = cargo ? cargo.nome : "";
+
+  const selectBase = document.getElementById("mc-perfil-base");
+  selectBase.value = cargo ? cargo.perfil_base : selectBase.value;
+  selectBase.disabled = !!cargo; // perfil_base não muda depois de criado
+
+  const perfilBase = selectBase.value;
+  renderModulosChecklist(perfilBase, cargo ? cargo.modulos : (CATALOGO_MODULOS[perfilBase] || []).map(m => m.id));
+  renderTurnosChecklist(cargo ? cargo.escopo_turno : ["todos"]);
+
+  document.getElementById("dialogo-cargo").showModal();
+}
+
+async function salvarCargo() {
+  const nome = document.getElementById("mc-nome").value.trim();
+  const perfilBase = document.getElementById("mc-perfil-base").value;
+  const modulos = [...document.querySelectorAll("#mc-modulos input:checked")].map(el => el.value);
+  const todosOsTurnos = document.getElementById("mc-turno-todos").checked;
+  const escopoTurno = todosOsTurnos
+    ? ["todos"]
+    : [...document.querySelectorAll(".mc-turno-item:checked")].map(el => el.value);
+
+  if (!nome) { mostrarAlerta("Dê um nome ao cargo.", "aviso"); return; }
+  if (!todosOsTurnos && escopoTurno.length === 0) {
+    mostrarAlerta("Selecione ao menos um turno, ou marque \"Todos os turnos\".", "aviso");
+    return;
+  }
+
+  mostrarSpinner("btn-salvar-cargo");
+  const r = cargoEditandoId
+    ? await api("put", `/admin/api/cargos/${cargoEditandoId}`, { nome, modulos, escopo_turno: escopoTurno })
+    : await api("post", "/admin/api/cargos", { nome, perfil_base: perfilBase, modulos, escopo_turno: escopoTurno });
+  ocultarSpinner("btn-salvar-cargo");
+
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Não foi possível salvar o cargo. Verifique sua conexão e tente novamente.", "erro", 6000); return; }
+
+  document.getElementById("dialogo-cargo").close();
+  mostrarAlerta("Cargo salvo.", "sucesso");
+  carregarCargos();
+}
+
+async function excluirCargo(id) {
+  const ok = await confirmarAcao({
+    titulo: "Excluir cargo?",
+    texto: `<strong>Esta ação não pode ser desfeita.</strong>
+            <span class="text-xs text-mudo" style="display:block; margin-top:6px;">
+              Só é possível excluir cargos sem nenhum usuário vinculado no momento.
+            </span>`,
+    rotuloConfirmar: "Excluir",
+    perigoso: true,
+  });
+  if (!ok) return;
+  const r = await api("delete", `/admin/api/cargos/${id}`);
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Não foi possível excluir o cargo. Verifique sua conexão e tente novamente.", "erro", 6000); return; }
+  mostrarAlerta("Cargo excluído.", "sucesso");
+  carregarCargos();
+}
+</script>
+{% endblock %}
