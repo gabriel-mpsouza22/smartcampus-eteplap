@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block titulo %}Smart Campus{% endblock %} — {{ sigla_escola }}</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/premium-effects.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/graficos.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/notificacoes.css') }}">
+  {% block estilos %}{% endblock %}
+</head>
+<body>
+
+{% include "_icones.html" %}
+
+<div class="layout">
+
+  
+  <aside class="sidebar" role="navigation" aria-label="Menu principal">
+
+    <div class="sidebar-logo">
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo" class="sidebar-logo-imagem">
+      <div>
+        <div class="sidebar-logo-nome">Smart Campus</div>
+        <div class="sidebar-logo-subtitulo">{{ sigla_escola }}</div>
+      </div>
+    </div>
+
+    <div class="sidebar-usuario">
+      <div class="sidebar-avatar"
+           style="background: {{ cor_perfil }};"
+           aria-hidden="true">
+        {{ usuario.nome[0].upper() }}
+      </div>
+      <div class="sidebar-usuario-info">
+        <div class="sidebar-usuario-nome" title="{{ usuario.nome }}">{{ usuario.nome }}</div>
+        <div class="sidebar-usuario-perfil">{{ label_perfil }}</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="/dashboard" title="Visão geral">
+        <svg class="icon icone-modulo" aria-hidden="true"><use href="#i-home"></use></svg>
+        Visão geral
+      </a>
+
+      {% for grupo in menu_agrupado %}
+      <div class="sidebar-nav-grupo">
+        <div class="sidebar-nav-titulo">{{ grupo.label }}</div>
+        {% for modulo in grupo.itens %}
+        <a href="{{ modulo.url }}" title="{{ modulo.nome }}">
+          <svg class="icon icone-modulo" aria-hidden="true"><use href="#{{ modulo.icone }}"></use></svg>
+          {{ modulo.nome }}
+          <span class="badge-notif-modulo" data-modulo="{{ menu_para_modulo.get(modulo.id, modulo.id) }}" style="display:none;">0</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </nav>
+
+    <div class="sidebar-rodape">
+      <a href="/logout" title="Sair do sistema">
+        <svg class="icon" aria-hidden="true"><use href="#i-logout"></use></svg> Sair
+      </a>
+    </div>
+
+  </aside>
+
+  
+  <main class="conteudo">
+
+    <header class="topbar">
+      <div class="topbar-titulo-wrap flex items-center gap-12">
+        <button id="btn-menu-mobile" class="btn-menu-mobile"
+                aria-label="Abrir menu" type="button">
+          <svg class="icon"><use href="#i-menu"></use></svg>
+        </button>
+        <span class="topbar-titulo">{% block topbar_titulo %}{% endblock %}</span>
+      </div>
+
+      <div class="topbar-acoes">
+        <span class="mono text-sm text-mudo" id="relogio-topbar"
+              aria-live="polite" aria-label="Horário atual"></span>
+
+        {% if usuario %}
+        <div class="notif-wrap">
+          <button class="notif-sino" id="btn-notif-sino" type="button"
+                  aria-label="Notificações" onclick="alternarDropdownNotif()">
+            <svg class="icon"><use href="#i-bell"></use></svg>
+            <span class="badge-notif-sino" id="badge-notif-sino" style="display:none;">0</span>
+          </button>
+          <div class="notif-dropdown" id="notif-dropdown">
+            <div class="notif-dropdown-cabecalho">
+              <span>Notificações</span>
+              <button type="button" onclick="marcarTodasNotifLidas()">Marcar todas como lidas</button>
+            </div>
+            <div class="notif-dropdown-lista" id="notif-dropdown-lista">
+              <div class="notif-vazio">Carregando…</div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        {% block topbar_acoes %}{% endblock %}
+      </div>
+    </header>
+
+    <div class="pagina" role="main">
+      {% block conteudo %}{% endblock %}
+    </div>
+
+  </main>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script src="{{ url_for('static', filename='js/premium-effects.js') }}"></script>
+<script src="{{ url_for('static', filename='js/graficos.js') }}"></script>
+{% if usuario %}<script src="{{ url_for('static', filename='js/notificacoes.js') }}"></script>{% endif %}
+{% block scripts %}{% endblock %}
+</body>
+</html>
