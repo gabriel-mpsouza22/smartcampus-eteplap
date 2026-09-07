@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block titulo %}Saídas de Alunos{% endblock %}
+{% block topbar_titulo %}<svg class='icon'><use href='#i-door'></use></svg> Saídas Autorizadas — Portaria{% endblock %}
+
+{% block estilos %}
+<style>
+.pt-fila { display: flex; flex-direction: column; gap: 10px; max-width: 760px; }
+.pt-item { background: var(--card); border: 1px solid var(--borda); border-left: 5px solid var(--verde); border-radius: var(--raio-lg);
+  padding: 16px 18px; display: flex; align-items: center; gap: 16px; }
+.pt-item.atrasado { border-left-color: #E76F51; }
+.pt-hora { font-family: var(--fonte-mono); font-weight: 800; font-size: 1.3rem; min-width: 62px; }
+.pt-info { flex: 1; }
+.pt-nome { font-weight: 800; font-size: 1.05rem; }
+.pt-meta { font-size: .82rem; color: var(--texto-secundario); }
+.pt-atraso { font-size: .74rem; font-weight: 700; color: #E76F51; margin-top: 2px; }
+.pt-concluidas { opacity: .55; }
+.pt-concluidas .pt-item { border-left-color: var(--texto-mudo); }
+.pt-secao-titulo { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--texto-secundario); margin: 24px 0 10px; }
+.pt-secao-titulo:first-child { margin-top: 0; }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+<div class="flex justify-between items-center mb-16">
+  <span class="secao-titulo" style="font-size:1rem;margin:0;">Quem pode sair agora</span>
+  <button class="btn btn-secundario btn-sm" onclick="carregar()"><svg class='icon'><use href='#i-refresh'></use></svg> Atualizar</button>
+</div>
+
+<div class="pt-secao-titulo">Autorizadas</div>
+<div class="pt-fila" id="pt-autorizadas"><div class="estado-vazio">Carregando…</div></div>
+
+<div class="pt-secao-titulo">Concluídas hoje</div>
+<div class="pt-fila pt-concluidas" id="pt-concluidas"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const HOJE = "{{ hoje }}";
+
+document.addEventListener("DOMContentLoaded", () => {
+  carregar();
+  setInterval(carregar, 8000);
+});
+
+function minutosAtraso(horario) {
+  const [h, m] = horario.split(":").map(Number);
+  const alvo = new Date(); alvo.setHours(h, m, 0, 0);
+  return Math.round((new Date() - alvo) / 60000);
+}
+
+async function carregar() {
+  const r = await api("get", `/saidas/api/autorizacoes?data=${HOJE}`);
+  if (!r.ok) return;
+
+  const autorizadas = r.dados.filter(a => a.status === "autorizada")
+    .sort((a, b) => minutosAtraso(b.horario_previsto) - minutosAtraso(a.horario_previsto));
+  const concluidas = r.dados.filter(a => a.status === "saida_registrada");
+
+  const boxA = document.getElementById("pt-autorizadas");
+  boxA.innerHTML = autorizadas.length ? autorizadas.map(a => {
+    const atraso = minutosAtraso(a.horario_previsto);
+    const atrasado = atraso > 0;
+    return `
+    <div class="pt-item ${atrasado ? 'atrasado' : ''}">
+      <div class="pt-hora">${a.horario_previsto}</div>
+      <div class="pt-info">
+        <div class="pt-nome">${a.aluno_nome}</div>
+        <div class="pt-meta">${a.aluno_turma} · ${a.motivo_label}${a.responsavel_nome ? " · Retirado por: " + a.responsavel_nome : ""}</div>
+        <div class="pt-meta">Autorizado por: ${a.autorizado_por || "—"}</div>
+        ${atrasado ? `<div class="pt-atraso">Aguardando saída há ${atraso} min</div>` : ""}
+      </div>
+      <button class="btn btn-primario" id="btn-saida-${a.id}" onclick="registrarSaida(${a.id})">
+        <svg class='icon'><use href='#i-check'></use></svg> Registrar saída
+      </button>
+    </div>`;
+  }).join("") : `<div class="estado-vazio"><svg class='icon'><use href='#i-inbox'></use></svg> Ninguém autorizado a sair no momento.</div>`;
+
+  document.getElementById("pt-concluidas").innerHTML = concluidas.map(a => `
+    <div class="pt-item">
+      <div class="pt-hora">${(a.saida_registrada_em || "").slice(11,16)}</div>
+      <div class="pt-info">
+        <div class="pt-nome">${a.aluno_nome}</div>
+        <div class="pt-meta">${a.aluno_turma} · registrado por ${a.saida_registrada_por}</div>
+        <div class="pt-meta">Autorizado por: ${a.autorizado_por || "—"}</div>
+      </div>
+    </div>`).join("");
+}
+
+async function registrarSaida(id) {
+  mostrarSpinner(`btn-saida-${id}`);
+  const r = await api("post", `/saidas/api/autorizacoes/${id}/registrar-saida`);
+  if (r.ok) {
+    mostrarAlerta(`✓ Saída registrada às ${r.dados.horario.slice(11,16)}.`, "sucesso");
+    carregar();
+  } else {
+    ocultarSpinner(`btn-saida-${id}`);
+    mostrarAlerta(r.dados?.erro || "Erro ao registrar saída.", "erro");
+    carregar();
+  }
+}
+</script>
+{% endblock %}
