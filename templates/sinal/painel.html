@@ -1,0 +1,587 @@
+{% extends "base.html" %}
+
+{% block titulo %}Sinal{% endblock %}
+{% block topbar_titulo %}<svg class='icon'><use href='#i-bell'></use></svg> Controle do Sinal{% endblock %}
+
+{% block topbar_acoes %}
+<button class="btn btn-secundario btn-sm" onclick="atualizarStatus()" title="Atualizar">
+  <svg class='icon'><use href='#i-refresh'></use></svg> Atualizar
+</button>
+<button class="btn btn-primario btn-sm" id="btn-tocar" onclick="tocarManual()">
+  <svg class='icon'><use href='#i-bell'></use></svg> Tocar agora
+</button>
+{% endblock %}
+
+{% block estilos %}
+<style>
+  .grade-sinal {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 20px;
+    align-items: start;
+  }
+
+  
+  .status-tocado    { background:var(--verde-claro); color:var(--verde); }
+  .status-pendente  { background:var(--azul-claro); color:var(--azul); }
+  .status-cancelado { background:var(--vermelho-claro); color:var(--vermelho); text-decoration: line-through; }
+  .status-passado   { background:var(--bg-fundo2); color:var(--texto-mudo); }
+  .status-tocando   { background:var(--amarelo-claro); color:var(--amarelo); animation: pulsar 1s infinite; }
+
+  @keyframes pulsar {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.5; }
+  }
+
+  .hora-col {
+    font-family: var(--fonte-mono);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--texto);
+    white-space: nowrap;
+  }
+
+  .btn-acao {
+    padding: 3px 10px;
+    font-size: 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    border: none;
+    font-family: var(--fonte-corpo);
+    font-weight: 600;
+    transition: opacity .15s;
+  }
+  .btn-acao:hover { opacity: .8; }
+  .btn-cancelar  { background:var(--vermelho-claro); color:var(--vermelho); }
+  .btn-restaurar { background:var(--verde-claro); color:var(--verde); }
+
+  
+  .lista-btns { display:flex; gap:8px; flex-wrap:wrap; }
+  .lista-btn {
+    padding: 7px 16px;
+    border-radius: 8px;
+    border: 2px solid var(--borda-forte);
+    background: var(--card);
+    font-family: var(--fonte-corpo);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+    color: var(--texto-secundario);
+  }
+  .lista-btn.ativo {
+    border-color: var(--preto);
+    background: var(--bg-fundo2);
+    color: var(--texto);
+  }
+
+  
+  .proximo-card {
+    background: linear-gradient(150deg, #16233F 0%, #1D3358 55%, #24406E 100%);
+    color: #F3F6FC;
+    border: 1px solid #2C4269;
+    border-radius: var(--raio-lg);
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .proximo-hora {
+    font-family: var(--fonte-mono);
+    font-size: 2.2rem;
+    font-weight: 700;
+    letter-spacing: .05em;
+    line-height: 1;
+    margin: 8px 0 4px;
+    color: #FFFFFF;
+  }
+  .proximo-desc {
+    font-size: 0.82rem;
+    color: #AEC2E3;
+  }
+
+  
+  .spin { display:inline-block; animation: girar .5s linear infinite; }
+
+  
+  .wp-secao { border-top: 1px solid var(--borda); padding-top: 16px; margin-top: 16px; }
+  .wp-titulo { font-family: var(--fonte-display); font-weight:700; font-size:.9rem; margin-bottom:12px; }
+  .checkbox-lista { display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto; }
+  .checkbox-lista label {
+    display:flex; align-items:center; gap:8px;
+    font-size:.82rem; cursor:pointer;
+  }
+  .checkbox-lista input[type=checkbox] { width:15px; height:15px; cursor:pointer; }
+
+  
+  .offline-banner {
+    background: var(--amarelo-claro);
+    border: 1px solid var(--amarelo);
+    border-radius: var(--raio);
+    padding: 10px 16px;
+    font-size: .82rem;
+    color: var(--amarelo);
+    margin-bottom: 16px;
+    display: none;
+  }
+  .offline-banner.visivel { display:flex; gap:8px; align-items:center; }
+
+  @media (max-width: 900px) {
+    .grade-sinal { grid-template-columns: 1fr; }
+  }
+
+  
+  .som-secao { border-top: 1px solid var(--borda); padding-top: 16px; margin-top: 16px; }
+  .som-titulo { font-family: var(--fonte-display); font-weight:700; font-size:.9rem; margin-bottom:12px; }
+  .som-lista { display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto; margin-bottom:12px; }
+  .som-item {
+    display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius: var(--raio);
+    border: 1.5px solid var(--borda); cursor:pointer; transition: all .15s;
+  }
+  .som-item:hover { background: var(--fundo); }
+  .som-item.ativo { border-color: var(--verde); background: var(--verde-claro); }
+  .som-item input[type=radio] { width:15px; height:15px; cursor:pointer; flex-shrink:0; }
+  .som-nome { flex:1; font-size:.82rem; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .som-badge-ativo { font-size:.65rem; font-weight:700; color:var(--verde); background:var(--card); padding:2px 6px; border-radius:999px; }
+  .som-btn-testar, .som-btn-excluir {
+    background:none; border:none; cursor:pointer; padding:4px 6px; border-radius:6px;
+    color: var(--texto-secundario); flex-shrink:0;
+  }
+  .som-btn-testar:hover { background: var(--azul-claro); color: var(--azul); }
+  .som-btn-excluir:hover { background: var(--vermelho-claro); color: var(--vermelho); }
+  .som-upload-linha { display:flex; gap:8px; align-items:center; }
+  .som-upload-linha input[type=file] { flex:1; font-size:.76rem; }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+
+<div id="banner-offline" class="offline-banner">
+  <span><svg class='icon'><use href='#i-warning'></use></svg></span>
+  <span>App de sinal não detectado. Verifique se o <strong>sinal.pyw</strong> está rodando no computador do som.</span>
+</div>
+
+<div class="grade-sinal">
+
+  
+  <div>
+    <div class="card mb-16">
+      <div class="flex justify-between items-center mb-16">
+        <div class="card-titulo" style="margin:0">Lista de hoje</div>
+        <div class="lista-btns" id="lista-btns">
+          <button class="lista-btn" data-lista="padrao" onclick="trocarLista('padrao')">Padrão</button>
+          <button class="lista-btn" data-lista="sabado" onclick="trocarLista('sabado')">Sábado</button>
+          <button class="lista-btn" data-lista="prova"  onclick="trocarLista('prova')">Prova</button>
+        </div>
+      </div>
+
+      <div class="tabela-wrapper">
+        <table id="tabela-horarios">
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th>Descrição</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="corpo-tabela">
+            {% if status %}
+              {% for h in status.horarios %}
+              <tr id="linha-{{ h.id }}">
+                <td class="hora-col">{{ h.hora }}</td>
+                <td>{{ h.descricao }}</td>
+                <td>
+                  <span class="badge status-{{ h.status }}">
+                    {% if h.status == 'tocado'   %}<svg class='icon'><use href='#i-check'></use></svg> Tocado
+                    {% elif h.status == 'cancelado' %}<svg class='icon'><use href='#i-close'></use></svg> Cancelado
+                    {% elif h.status == 'tocando'   %}● Tocando
+                    {% elif h.status == 'pendente'  %}<svg class='icon'><use href='#i-clock'></use></svg> Pendente
+                    {% else %}— Passado{% endif %}
+                  </span>
+                </td>
+                <td style="white-space:nowrap;">
+                  {% if h.status == 'pendente' %}
+                  <button class="btn-acao btn-cancelar"
+                          onclick="cancelar('{{ h.id }}')">Cancelar</button>
+                  {% elif h.status == 'cancelado' %}
+                  <button class="btn-acao btn-restaurar"
+                          onclick="restaurar('{{ h.id }}')">Restaurar</button>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="4" style="text-align:center;color:var(--texto-mudo);padding:24px;">
+                Carregando horários…
+              </td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  
+  <div>
+
+    
+    <div class="proximo-card" id="card-proximo">
+      <div style="font-size:.75rem;opacity:.6;text-transform:uppercase;letter-spacing:.06em;">
+        Próximo sinal
+      </div>
+      <div class="proximo-hora" id="proximo-hora">--:--</div>
+      <div class="proximo-desc" id="proximo-desc">Carregando…</div>
+    </div>
+
+    
+    <div class="card mb-16" style="text-align:center;padding:16px;">
+      <div style="font-size:.7rem;color:var(--texto-mudo);margin-bottom:4px;">Hora atual</div>
+      <div class="mono" style="font-size:1.6rem;font-weight:700;" id="relogio-grande">--:--:--</div>
+    </div>
+
+    
+    <div class="card mb-16">
+      <div class="som-titulo"><svg class='icon'><use href='#i-mic'></use></svg> Som do sinal</div>
+
+      <div class="som-lista" id="som-lista">
+        <div style="font-size:.8rem;color:var(--texto-mudo);padding:8px 0;">Carregando sons…</div>
+      </div>
+
+      <div class="som-upload-linha">
+        <input type="file" id="som-upload-arquivo" accept=".wav">
+        <button class="btn btn-secundario btn-sm" id="btn-som-upload" onclick="enviarNovoSom()">
+          <svg class='icon'><use href='#i-save'></use></svg> Enviar
+        </button>
+      </div>
+      <div style="font-size:.7rem;color:var(--texto-mudo);margin-top:6px;">
+        Apenas arquivos .wav, até 8 MB.
+      </div>
+    </div>
+
+    
+    <div class="card">
+      <div class="wp-titulo"><svg class='icon'><use href='#i-phone'></use></svg> Aviso de saída antecipada</div>
+
+      <div class="campo">
+        <label>Horário de saída</label>
+        <input type="time" id="wp-horario" placeholder="Ex: 15:30">
+      </div>
+
+      <div class="campo">
+        <label>Motivo</label>
+        <select id="wp-motivo">
+          {% for mid, mtexto in motivos.items() %}
+          <option value="{{ mid }}">{{ mtexto }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="campo">
+        <label>Turmas</label>
+        <div class="checkbox-lista" id="lista-turmas">
+          {% for grupo in grupos %}
+          <label>
+            <input type="checkbox" value="{{ grupo.id }}" data-nome="{{ grupo.nome }}"
+                   onchange="atualizarTurmasSelecionadas()">
+            {{ grupo.nome }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div id="wp-preview" class="alerta alerta-info mb-16" style="display:none;font-size:.78rem;">
+        <span><svg class='icon'><use href='#i-eye'></use></svg></span>
+        <span id="wp-preview-texto"></span>
+      </div>
+
+      <button class="btn btn-sucesso w-full" id="btn-wp" onclick="enviarWhatsApp()">
+        Enviar WhatsApp
+      </button>
+
+      <div id="wp-resultado" class="mt-8" style="font-size:.8rem;"></div>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+
+let listaAtiva = "{{ status.lista_ativa if status else 'padrao' }}";
+
+
+async function atualizarStatus() {
+  const { ok, dados } = await api("get", "/sinal/api/status");
+
+  const banner = document.getElementById("banner-offline");
+  if (!ok) {
+    banner.classList.add("visivel");
+    return;
+  }
+  banner.classList.remove("visivel");
+
+  listaAtiva = dados.lista_ativa;
+  marcarListaAtiva(listaAtiva);
+  renderizarTabela(dados.horarios);
+  atualizarProximo(dados.proximo);
+}
+
+
+function renderizarTabela(horarios) {
+  const labels = {
+    tocado:"<svg class='icon'><use href='#i-check'></use></svg> Tocado", cancelado:"<svg class='icon'><use href='#i-close'></use></svg> Cancelado",
+    tocando:"● Tocando", pendente:"<svg class='icon'><use href='#i-clock'></use></svg> Pendente", passado:"— Passado"
+  };
+
+  let html = "";
+  for (const h of horarios) {
+    const btnAcao = h.status === "pendente"
+      ? `<button class="btn-acao btn-cancelar" onclick="cancelar('${h.id}')">Cancelar</button>`
+      : h.status === "cancelado"
+        ? `<button class="btn-acao btn-restaurar" onclick="restaurar('${h.id}')">Restaurar</button>`
+        : "";
+
+    html += `
+      <tr id="linha-${h.id}">
+        <td class="hora-col">${h.hora}</td>
+        <td>${h.descricao}</td>
+        <td><span class="badge status-${h.status}">${labels[h.status] || h.status}</span></td>
+        <td style="white-space:nowrap;">${btnAcao}</td>
+      </tr>`;
+  }
+  document.getElementById("corpo-tabela").innerHTML = html;
+}
+
+
+function atualizarProximo(proximo) {
+  const elHora = document.getElementById("proximo-hora");
+  const elDesc = document.getElementById("proximo-desc");
+  if (proximo) {
+    elHora.textContent = proximo.hora;
+    elDesc.textContent = proximo.descricao;
+  } else {
+    elHora.textContent = "--:--";
+    elDesc.textContent = "Nenhum sinal pendente hoje";
+  }
+}
+
+
+function marcarListaAtiva(lista) {
+  document.querySelectorAll(".lista-btn").forEach(btn => {
+    btn.classList.toggle("ativo", btn.dataset.lista === lista);
+  });
+}
+
+async function trocarLista(nova) {
+  if (nova === listaAtiva) return;
+  const confirmado = await confirmarAcao({ titulo: `Trocar para a lista "${nova}"?`, texto: "Os cancelamentos de hoje serão resetados.", rotuloConfirmar: "Trocar", perigoso: true });
+  if (!confirmado) return;
+
+  mostrarSpinner("btn-tocar");
+  const { ok, dados } = await api("put", "/sinal/api/lista", { lista: nova });
+  ocultarSpinner("btn-tocar");
+
+  if (ok) {
+    mostrarAlerta(`Lista trocada para: ${nova}`, "sucesso");
+    await atualizarStatus();
+  } else {
+    mostrarAlerta(dados?.erro || "Erro ao trocar lista.", "erro");
+  }
+}
+
+
+async function tocarManual() {
+  mostrarSpinner("btn-tocar");
+  const { ok, dados } = await api("post", "/sinal/api/tocar");
+  ocultarSpinner("btn-tocar");
+  mostrarAlerta(ok ? "<svg class='icon'><use href='#i-bell'></use></svg> Sinal tocado!" : (dados?.erro || "Erro."), ok ? "sucesso" : "erro");
+}
+
+
+async function cancelar(hid) {
+  const { ok, dados } = await api("post", `/sinal/api/cancelar/${hid}`);
+  if (ok) { await atualizarStatus(); mostrarAlerta("Horário cancelado.", "aviso"); }
+  else       mostrarAlerta(dados?.erro || "Erro.", "erro");
+}
+
+async function restaurar(hid) {
+  const { ok, dados } = await api("post", `/sinal/api/restaurar/${hid}`);
+  if (ok) { await atualizarStatus(); mostrarAlerta("Horário restaurado.", "sucesso"); }
+  else       mostrarAlerta(dados?.erro || "Erro.", "erro");
+}
+
+
+function atualizarTurmasSelecionadas() {
+  const selecionadas = [];
+  document.querySelectorAll("#lista-turmas input:checked").forEach(cb => {
+    selecionadas.push(cb.dataset.nome);
+  });
+
+  const preview = document.getElementById("wp-preview");
+  const texto   = document.getElementById("wp-preview-texto");
+  const horario = document.getElementById("wp-horario").value;
+
+  if (selecionadas.length > 0 && horario) {
+    preview.style.display = "flex";
+    texto.textContent = `Turmas: ${selecionadas.join(", ")} — Saída: ${horario}`;
+  } else {
+    preview.style.display = "none";
+  }
+}
+
+async function enviarWhatsApp() {
+  const horario = document.getElementById("wp-horario").value;
+  const motivo  = document.getElementById("wp-motivo").value;
+
+  const turmasIds = [];
+  const turmasNomes = [];
+  document.querySelectorAll("#lista-turmas input:checked").forEach(cb => {
+    turmasIds.push(cb.value);
+    turmasNomes.push(cb.dataset.nome);
+  });
+
+  if (!horario) { mostrarAlerta("Informe o horário de saída.", "aviso"); return; }
+  if (turmasIds.length === 0) { mostrarAlerta("Selecione ao menos uma turma.", "aviso"); return; }
+  const confirmado = await confirmarAcao({ titulo: "Enviar aviso de saída?", texto: `Às ${horario} para: ${turmasNomes.join(", ")}`, rotuloConfirmar: "Enviar" });
+  if (!confirmado) return;
+
+  mostrarSpinner("btn-wp");
+  const { ok, dados } = await api("post", "/sinal/api/whatsapp", {
+    turmas: turmasNomes,
+    horario_saida: horario,
+    motivo
+  });
+  ocultarSpinner("btn-wp");
+
+  const res = document.getElementById("wp-resultado");
+  if (ok && dados.enviados?.length) {
+    res.innerHTML = `<span style="color:var(--verde)"><svg class='icon'><use href='#i-check'></use></svg> Enviado para: ${dados.enviados.join(", ")}</span>`;
+    mostrarAlerta("Mensagem enviada com sucesso!", "sucesso");
+  } else {
+    const erros = dados?.erros?.join("<br>") || dados?.erro || "Erro desconhecido.";
+    res.innerHTML = `<span style="color:var(--vermelho)"><svg class='icon'><use href='#i-close'></use></svg> ${erros}</span>`;
+    mostrarAlerta("Problema ao enviar. Veja detalhes abaixo.", "erro");
+  }
+}
+
+
+
+async function carregarSons() {
+  const { ok, dados } = await api("get", "/sinal/api/sons");
+  const lista = document.getElementById("som-lista");
+
+  if (!ok) {
+    lista.innerHTML = `<div style="font-size:.8rem;color:var(--vermelho);padding:8px 0;">Não foi possível carregar os sons. Verifique se o sinal.pyw está rodando.</div>`;
+    return;
+  }
+
+  renderizarSons(dados.sons || [], dados.som_ativo || "sinal.wav");
+}
+
+function renderizarSons(sons, ativo) {
+  const lista = document.getElementById("som-lista");
+
+  if (sons.length === 0) {
+    lista.innerHTML = `<div style="font-size:.8rem;color:var(--texto-mudo);padding:8px 0;">Nenhum som cadastrado.</div>`;
+    return;
+  }
+
+  lista.innerHTML = sons.map(nome => {
+    const estaAtivo = nome === ativo;
+    return `
+      <label class="som-item ${estaAtivo ? 'ativo' : ''}">
+        <input type="radio" name="som-radio" value="${nome}" ${estaAtivo ? 'checked' : ''}
+               onchange="selecionarSom('${nome}')">
+        <span class="som-nome" title="${nome}">${nome}</span>
+        ${estaAtivo ? '<span class="som-badge-ativo">Em uso</span>' : ''}
+        <button type="button" class="som-btn-testar" title="Ouvir" onclick="testarSom(event, '${nome}')">
+          <svg class='icon'><use href='#i-eye'></use></svg>
+        </button>
+        ${nome !== 'sinal.wav' ? `
+        <button type="button" class="som-btn-excluir" title="Excluir" onclick="excluirSom(event, '${nome}')">
+          <svg class='icon'><use href='#i-close'></use></svg>
+        </button>` : ''}
+      </label>`;
+  }).join("");
+}
+
+async function selecionarSom(nome) {
+  const { ok, dados } = await api("put", "/sinal/api/sons/ativo", { arquivo: nome });
+  if (ok) {
+    mostrarAlerta(`Som do sinal alterado para: ${nome}`, "sucesso");
+    carregarSons();
+  } else {
+    mostrarAlerta(dados?.erro || "Erro ao selecionar som.", "erro");
+    carregarSons();
+  }
+}
+
+async function testarSom(evento, nome) {
+  evento.preventDefault();
+  evento.stopPropagation();
+  const { ok, dados } = await api("post", `/sinal/api/sons/testar/${encodeURIComponent(nome)}`);
+  mostrarAlerta(ok ? `Tocando: ${nome}` : (dados?.erro || "Erro ao testar som."), ok ? "info" : "erro");
+}
+
+async function excluirSom(evento, nome) {
+  evento.preventDefault();
+  evento.stopPropagation();
+  const confirmado = await confirmarAcao({ titulo: `Excluir o som "${nome}"?`, rotuloConfirmar: "Excluir", perigoso: true });
+  if (!confirmado) return;
+
+  const { ok, dados } = await api("delete", `/sinal/api/sons/${encodeURIComponent(nome)}`);
+  if (ok) { mostrarAlerta("Som removido.", "aviso"); carregarSons(); }
+  else mostrarAlerta(dados?.erro || "Erro ao excluir som.", "erro");
+}
+
+async function enviarNovoSom() {
+  const input = document.getElementById("som-upload-arquivo");
+  const arquivo = input.files[0];
+  if (!arquivo) { mostrarAlerta("Selecione um arquivo .wav.", "aviso"); return; }
+
+  const formData = new FormData();
+  formData.append("arquivo", arquivo);
+
+  mostrarSpinner("btn-som-upload");
+  try {
+    const resposta = await fetch("/sinal/api/sons/upload", { method: "POST", body: formData });
+    const dados = await resposta.json();
+    ocultarSpinner("btn-som-upload");
+
+    if (resposta.ok && dados.ok) {
+      mostrarAlerta(`Som "${dados.arquivo}" enviado com sucesso!`, "sucesso");
+      input.value = "";
+      carregarSons();
+    } else {
+      mostrarAlerta(dados?.erro || "Erro ao enviar o som.", "erro");
+    }
+  } catch (e) {
+    ocultarSpinner("btn-som-upload");
+    mostrarAlerta("Erro de conexão ao enviar o som.", "erro");
+  }
+}
+
+
+document.addEventListener("DOMContentLoaded", () => {
+  marcarListaAtiva(listaAtiva);
+
+  
+  const relogioGrande = document.getElementById("relogio-grande");
+  setInterval(() => {
+    const d = new Date();
+    relogioGrande.textContent = [d.getHours(), d.getMinutes(), d.getSeconds()]
+      .map(v => String(v).padStart(2, "0")).join(":");
+  }, 1000);
+
+  
+  atualizarStatus();
+  setInterval(atualizarStatus, 30000);
+  carregarSons();
+
+  
+  document.getElementById("wp-horario").addEventListener("input", atualizarTurmasSelecionadas);
+});
+</script>
+{% endblock %}
