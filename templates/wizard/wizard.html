@@ -1,0 +1,316 @@
+{% extends "wizard/base.html" %}
+{% block titulo %}Assistente de Instalação{% endblock %}
+
+{% block conteudo %}
+<div class="wizard-shell">
+
+  <aside class="wizard-progresso">
+    <div class="wizard-progresso-marca">Smart Campus</div>
+    <div class="wizard-progresso-sub">Assistente de instalação</div>
+    <div id="lista-progresso"></div>
+  </aside>
+
+  <main class="wizard-conteudo">
+
+    <div class="wizard-erros" id="caixa-erros">
+      <strong>Antes de continuar, corrija:</strong>
+      <ul id="lista-erros"></ul>
+    </div>
+
+    <!-- 1. BOAS-VINDAS ------------------------------------------------ -->
+    <section class="wizard-etapa" data-step="boas-vindas">
+      <div class="wizard-boas-vindas">
+        <h1>Configuração inicial</h1>
+        <p>Vamos configurar esta instalação do Smart Campus passo a passo. Leva poucos minutos e, ao final, a instituição já estará pronta para uso.</p>
+        <button class="btn btn-primario btn-lg" onclick="wz.avancar()">Começar</button>
+      </div>
+    </section>
+
+    <!-- 2. INSTITUIÇÃO -------------------------------------------------- -->
+    <section class="wizard-etapa" data-step="instituicao">
+      <div class="wizard-etapa-titulo">Identificação da instituição</div>
+      <div class="wizard-etapa-sub">Dados básicos usados em todo o sistema (topo do menu, relatórios etc).</div>
+
+      <div class="campo"><label>Nome completo da instituição</label>
+        <input type="text" id="f-inst-nome" placeholder="Escola Técnica Estadual...">
+      </div>
+      <div class="campo"><label>Nome curto / sigla</label>
+        <input type="text" id="f-inst-sigla" placeholder="Sugerida automaticamente — edite se quiser">
+        <span class="text-xs text-mudo">Preenchida sozinha a partir do nome acima; pode alterar à vontade.</span>
+      </div>
+      <div class="campo"><label>Cidade / bairro</label>
+        <input type="text" id="f-inst-cidade" placeholder="Iputinga, Recife">
+      </div>
+      <div class="campo"><label>Estado (UF) — opcional</label>
+        <input type="text" id="f-inst-estado" maxlength="2" placeholder="PE" style="max-width:100px;">
+      </div>
+      <div class="campo"><label>Responsável pela implantação</label>
+        <input type="text" id="f-inst-responsavel" placeholder="Nome de quem está instalando">
+      </div>
+
+      <div class="wizard-acoes">
+        <button class="btn btn-secundario" onclick="wz.voltar()">Voltar</button>
+        <button class="btn btn-primario" onclick="wz.salvarInstituicao()">Continuar</button>
+      </div>
+    </section>
+
+    <!-- 3. TIPO DE INSTITUIÇÃO ------------------------------------------ -->
+    <section class="wizard-etapa" data-step="estrutura">
+      <div class="wizard-etapa-titulo">Tipo de instituição</div>
+      <div class="wizard-etapa-sub">Na próxima etapa você define os turnos, séries/módulos, cursos e turmas — cada turno com sua própria estrutura.</div>
+
+      <div class="campo"><label>Tipo de instituição</label>
+        <select id="f-est-tipo">
+          <option value="regular">Escola regular</option>
+          <option value="tecnica">Escola técnica/ETE</option>
+          <option value="faculdade">Faculdade</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+
+      <div class="wizard-acoes">
+        <button class="btn btn-secundario" onclick="wz.voltar()">Voltar</button>
+        <button class="btn btn-primario" onclick="wz.salvarEstrutura()">Continuar</button>
+      </div>
+    </section>
+
+    <!-- 4. TURNOS E TURMAS ------------------------------------------------ -->
+    <section class="wizard-etapa" data-step="turmas">
+      <div class="wizard-etapa-titulo">Turnos e turmas</div>
+      <div class="wizard-etapa-sub">
+        Nem toda escola é igual: adicione um bloco para cada turno (ex: Integral, Noite, Manhã) e defina, dentro de
+        cada um, apenas as séries/módulos, cursos e sufixos daquele turno. As turmas são geradas só dentro do
+        próprio bloco — assim o sistema nunca mistura, por exemplo, os módulos da Noite com os cursos do Integral.
+      </div>
+
+      <div id="lista-blocos-turno"></div>
+
+      <button class="btn btn-secundario" onclick="wz.adicionarBloco()" style="margin-bottom:24px;">
+        <svg class="icon"><use href="#i-plus"></use></svg> Adicionar turno
+      </button>
+
+      <div class="wizard-etapa-titulo" style="font-size:0.95rem;">Turmas geradas (conferir e ajustar)</div>
+      <div id="aviso-turma-duplicada" class="wizard-erros visivel" style="display:none;margin-bottom:12px;"></div>
+
+      <div class="tabela-wrapper">
+        <table>
+          <thead><tr><th>Turma</th><th>Série/Módulo</th><th>Curso</th><th>Turno</th><th></th></tr></thead>
+          <tbody id="corpo-tabela-turmas"></tbody>
+        </table>
+      </div>
+      <button class="btn btn-secundario btn-sm" style="margin-top:10px;" onclick="wz.addTurmaManual()">
+        <svg class="icon"><use href="#i-plus"></use></svg> Adicionar turma manualmente
+      </button>
+
+      <div class="wizard-acoes">
+        <button class="btn btn-secundario" onclick="wz.voltar()">Voltar</button>
+
+        <button class="btn btn-primario" onclick="wz.salvarTurmas()">Continuar</button>
+      </div>
+    </section>
+
+    <!-- 5. FUNCIONAMENTO -------------------------------------------------- -->
+    <section class="wizard-etapa" data-step="funcionamento">
+      <div class="wizard-etapa-titulo">Funcionamento</div>
+      <div class="wizard-etapa-sub">Isso define quais telas de horário aparecerão mais adiante (só se o módulo Sinal for contratado).</div>
+
+      <div class="campo">
+        <label><input type="checkbox" id="f-func-sabado"> A instituição possui horário diferente aos sábados</label>
+      </div>
+      <div class="campo">
+        <label><input type="checkbox" id="f-func-prova"> A instituição possui horário diferenciado para dias de prova</label>
+      </div>
+
+      <div class="wizard-acoes">
+        <button class="btn btn-secundario" onclick="wz.voltar()">Voltar</button>
+        <button class="btn btn-primario" onclick="wz.salvarFuncionamento()">Continuar</button>
+      </div>
+    </section>
+
+    <!-- 6. MÓDULOS ---------------------------------------------------------- -->
+    <section class="wizard-etapa" data-step="modulos">
+      <div class="wizard-etapa-titulo">Módulos contratados</div>
+      <div class="wizard-etapa-sub">Selecione os módulos incluídos neste pacote. Só as telas dos módulos escolhidos aparecerão a seguir.</div>
+
+      <div class="wizard-cards-modulos" id="cards-modulos"></div>
+
+      <div class="wizard-acoes">
+        <button class="btn btn-secundario" onclick="wz.voltar()">Voltar</button>
+        <button class="btn btn-primario" onclick="wz.salvarModulos()">Continuar</button>
+      </div>
+    </section>
+
+    <!-- 7. SINAL --------------------------------------------------------- -->
+    <section class="wizard-etapa" data-step="sinal">
+      <div class="wizard-etapa-titulo">Configuração do sinal</div>
+      <div class="wizard-etapa-sub">Onde o sistema de sinal será executado?</div>
+
+      <div class="campo">
+        <label><input type="radio" name="f-sinal-modo" value="local" checked onchange="wz.atualizarModoSinal()"> Nesta mesma máquina</label>
+      </div>
+      <div class="campo">
+        <label><input type="radio" name="f-sinal-modo" value="remoto" onchange="wz.atualizarModoSinal()"> Em outro computador</label>
+      </div>
+      <div class="campo" id="campo-sinal-url" style="display:none;">
+        <label>Endereço do computador do sinal</label>
+        <input type="text" id="f-sinal-url" placeholder="http://192.168.0.10:5001">
+      </div>
+
+      <div style="margin-top:24px;">
+        <div class="card-titulo" style="margin-bottom:2px;">Horário padrão (segunda a sexta)</div>
+        <div class="tabela-wrapper">
+          <table>
+            <thead><tr><th style="width:110px;">Horário</th><th>Evento</th><th></th></tr></thead>
+            <tbody id="corpo-horarios-padrao"></tbody>
+          </table>
+        </div>
+        <button class="btn btn-secundario btn-sm" style="margin-top:8px;" onclick="wz.addHorario('padrao')">
+          <svg class="icon"><use href="#i-plus"></use></svg> Adicionar evento
+        </button>
+      </div>
+
+      <div style="margin-top:24px;" id="bloco-horario-sabado">
+        <div class="card-titulo" style="margin-bottom:2px;">Horário de sábado</div>
+        <div class="tabela-wrapper">
+          <table>
+            <thead><tr><th style="width:110px;">Horário</th><th>Evento</th><th></th></tr></thead>
+            <tbody id="corpo-horarios-sabado"></tbody>
+          </table>
+        </div>
+        <button class="btn btn-secundario btn-sm" style="margin-top:8px;" onclick="wz.addHorario('sabado')">
+          <svg class="icon"><use href="#i-plus"></use></svg> Adicionar evento
+        </button>
+      </div>
+
+      <div style="margin-top:24px;" id="bloco-horario-prova">
+        <div class="card-titulo" style="margin-bottom:2px;">Horário de dia de prova</div>
+        <div class="tabela-wrapper">
+          <table>
+            <thead><tr><th style="width:110px;">Horário</th><th>Evento</th><th></th></tr></thead>
+            <tbody id="corpo-horarios-prova"></tbody>
+          </table>
+        </div>
+        <button class="btn btn-secundario btn-sm" style="margin-top:8px;" onclick="wz.addHorario('prova')">
+          <svg class="icon"><use href="#i-plus"></use></svg> Adicionar evento
+        </button>
+      </div>
+
+      <div class="wizard-acoes">
+        <button class="btn btn-secundario" onclick="wz.voltar()">Voltar</button>
+        <button class="btn btn-primario" onclick="wz.salvarSinal()">Continuar</button>
+      </div>
+    </section>
+
+    <!-- 8. IOT ------------------------------------------------------------ -->
+    <section class="wizard-etapa" data-step="iot">
+      <div class="wizard-etapa-titulo">Configuração do IoT</div>
+      <div class="wizard-etapa-sub">Marque as categorias de dispositivo que esta instituição possui. Os tokens de cada dispositivo são gerados automaticamente na instalação.</div>
+
+      <div class="card" style="margin-bottom:14px;">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:700;margin-bottom:10px;">
+          <input type="checkbox" id="f-iot-agua" onchange="wz.toggleIotBloco('agua')"> Sensores de nível de água
+        </label>
+        <div id="bloco-iot-agua" style="display:none;">
+          <div class="wizard-linha-adicionar">
+            <input type="text" id="f-iot-agua-novo" placeholder="Ex: Bebedouro — Pátio Principal">
+            <button class="btn btn-secundario" onclick="wz.addSensorAgua()">Adicionar</button>
+          </div>
+          <div id="lista-sensores-agua"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:14px;">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:700;margin-bottom:10px;">
+          <input type="checkbox" id="f-iot-portoes" onchange="wz.toggleIotBloco('portoes')"> Portões automatizados
+        </label>
+        <div id="bloco-iot-portoes" style="display:none;">
+          <div class="wizard-linha-adicionar">
+            <input type="text" id="f-iot-portao-novo" placeholder="Ex: Portão Principal">
+            <button class="btn btn-secundario" onclick="wz.addPortao()">Adicionar</button>
+          </div>
+          <div id="lista-portoes"></div>
+          <div style="display:flex;gap:12px;margin-top:10px;">
+            <div class="campo" style="flex:1;"><label>Abertura automática</label><input type="time" id="f-iot-portoes-abertura" value="07:00"></div>
+            <div class="campo" style="flex:1;"><label>Fechamento automático</label><input type="time" id="f-iot-portoes-fechamento" value="21:00"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:700;margin-bottom:10px;">
+          <input type="checkbox" id="f-iot-ac" onchange="wz.toggleIotBloco('ac')"> Ar-condicionados
+        </label>
+        <div id="bloco-iot-ac" style="display:none;">
+          <div class="campo"><label>Nome do grupo</label><input type="text" id="f-iot-ac-nome" placeholder="Ar-condicionados das Salas"></div>
+          <div class="campo"><label>Quantidade de aparelhos</label><input type="number" id="f-iot-ac-qtd" min="1" value="1"></div>
+          <div class="campo"><label>Horário de ligar automaticamente</label><input type="time" id="f-iot-ac-horario" value="07:00"></div>
+        </div>
+      </div>
+
+      <div class="wizard-acoes">
+        <button class="btn btn-secundario" onclick="wz.voltar()">Voltar</button>
+        <button class="btn btn-primario" onclick="wz.salvarIot()">Continuar</button>
+      </div>
+    </section>
+
+    <!-- 9. ADMINISTRADOR ---------------------------------------------------- -->
+    <section class="wizard-etapa" data-step="admin">
+      <div class="wizard-etapa-titulo">Administrador</div>
+      <div class="wizard-etapa-sub">Esta será a única conta criada durante a instalação. Outros usuários poderão ser cadastrados posteriormente pelo administrador.</div>
+
+      <div class="campo"><label>Nome</label><input type="text" id="f-admin-nome"></div>
+      <div class="campo"><label>Senha (mínimo 6 caracteres)</label><input type="password" id="f-admin-senha"></div>
+      <div class="campo"><label>Confirmar senha</label><input type="password" id="f-admin-confirmacao"></div>
+
+      <div class="wizard-acoes">
+        <button class="btn btn-secundario" onclick="wz.voltar()">Voltar</button>
+        <button class="btn btn-primario" onclick="wz.salvarAdmin()">Continuar</button>
+      </div>
+    </section>
+
+    <!-- 10. REVISÃO ----------------------------------------------------------- -->
+    <section class="wizard-etapa" data-step="revisao">
+      <div class="wizard-etapa-titulo">Revisão</div>
+      <div class="wizard-etapa-sub">Confira tudo antes de instalar. Nenhum arquivo foi alterado ainda.</div>
+
+      <div id="corpo-revisao"></div>
+
+      <div class="wizard-acoes">
+        <button class="btn btn-secundario" onclick="wz.voltar()">Voltar</button>
+        <button class="btn btn-primario btn-lg" onclick="wz.instalar()">Instalar</button>
+      </div>
+    </section>
+
+    <!-- 11. INSTALAÇÃO --------------------------------------------------------- -->
+    <section class="wizard-etapa" data-step="instalacao">
+      <div class="wizard-etapa-titulo">Configurando instalação...</div>
+      <div class="wizard-progresso-instalacao" id="lista-progresso-instalacao"></div>
+      <div id="erro-instalacao" class="wizard-erros"></div>
+    </section>
+
+    <!-- 12. CONCLUSÃO ------------------------------------------------------------ -->
+    <section class="wizard-etapa" data-step="conclusao">
+      <div class="wizard-conclusao">
+        <svg class="icone-grande"><use href="#i-check-circle"></use></svg>
+        <h1 style="font-size:1.6rem;font-weight:800;">Instalação concluída</h1>
+        <dl class="wizard-kv" style="max-width:340px;margin:20px auto;text-align:left;">
+          <dt>Instituição</dt><dd id="conc-nome">—</dd>
+          <dt>ID da instalação</dt><dd id="conc-id">—</dd>
+        </dl>
+        <p style="max-width:420px;margin:0 auto 20px;font-size:0.95rem;color:#555;">
+          <strong>Feche e abra o Smart Campus novamente</strong> antes de usar
+          o sistema. Os módulos contratados só ficam disponíveis depois de
+          reiniciar o programa.
+        </p>
+        <a class="btn btn-primario btn-lg" href="{{ url_for('login') }}">Entendi, fechar o Wizard</a>
+      </div>
+    </section>
+
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>window.WIZARD_MODULOS = {{ modulos | tojson }};</script>
+<script src="{{ url_for('static', filename='js/wizard.js') }}"></script>
+{% endblock %}
