@@ -1,0 +1,201 @@
+/* ── Dashboard — Command Center ──────────────────────────────
+   Usa os tokens definidos em style.css (cores, raios, sombras,
+   transições). Nenhuma cor ou espaçamento novo é inventado aqui. */
+
+.dash-cabecalho {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.dash-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--texto-secundario);
+  background: var(--card);
+  border: 1px solid var(--borda);
+  border-radius: 999px;
+  padding: 6px 14px 6px 10px;
+  white-space: nowrap;
+}
+
+.dash-status-ponto {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.dash-status-ponto--ok { background: var(--verde); }
+.dash-status-ponto--atencao { background: var(--amarelo); }
+
+/* ── resumo operacional: chips, não cards pesados ── */
+
+.dash-resumo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.dash-stat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-lg);
+  padding: 14px 16px;
+  text-decoration: none;
+  color: var(--texto);
+  transition: border-color var(--transicao), transform var(--transicao);
+}
+
+.dash-stat:hover {
+  border-color: var(--borda-forte);
+  transform: translateY(-1px);
+  text-decoration: none;
+}
+
+.dash-stat-icone {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.dash-stat-icone .icon { width: 17px; height: 17px; }
+
+.dash-stat-icone--azul     { background: var(--azul-claro);     color: var(--azul); }
+.dash-stat-icone--verde    { background: var(--verde-claro);    color: var(--verde); }
+.dash-stat-icone--amarelo  { background: var(--amarelo-claro);  color: var(--amarelo); }
+.dash-stat-icone--vermelho { background: var(--vermelho-claro); color: var(--vermelho); }
+.dash-stat-icone--texto    { background: var(--cinza-claro);    color: var(--texto-secundario); }
+
+.dash-stat-valor {
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-stat-label {
+  font-size: 0.76rem;
+  color: var(--texto-secundario);
+  margin-top: 2px;
+}
+
+.dash-stat-sublabel {
+  font-size: 0.7rem;
+  color: var(--texto-mudo);
+  margin-top: 1px;
+}
+
+/* ── grade principal: conteúdo + coluna lateral ── */
+
+.dash-grade-principal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .dash-grade-principal { grid-template-columns: 1fr; }
+}
+
+/* ── área de atenção ── */
+
+.dash-lista-alertas { display: flex; flex-direction: column; gap: 8px; }
+
+.dash-alerta {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--raio);
+  text-decoration: none;
+  color: var(--texto);
+  transition: background var(--transicao);
+}
+.dash-alerta:hover { text-decoration: none; }
+
+.dash-alerta--critico { background: var(--vermelho-claro); }
+.dash-alerta--critico .icon { color: var(--vermelho); }
+.dash-alerta--atencao { background: var(--amarelo-claro); }
+.dash-alerta--atencao .icon { color: var(--amarelo); }
+
+.dash-alerta .icon { width: 17px; height: 17px; margin-top: 1px; flex-shrink: 0; }
+
+.dash-alerta-titulo { font-weight: 600; font-size: 0.85rem; }
+.dash-alerta-descricao { font-size: 0.78rem; color: var(--texto-secundario); margin-top: 2px; }
+
+/* ── timeline de atividade ── */
+
+.dash-timeline { list-style: none; }
+
+.dash-timeline-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 4px;
+  border-bottom: 1px solid var(--borda);
+  text-decoration: none;
+  color: var(--texto);
+}
+.dash-timeline li:last-child .dash-timeline-item { border-bottom: none; }
+.dash-timeline-item:hover { text-decoration: none; color: var(--texto); }
+
+.dash-timeline-icone {
+  width: 15px;
+  height: 15px;
+  color: var(--texto-mudo);
+  flex-shrink: 0;
+}
+
+.dash-timeline-titulo {
+  font-size: 0.83rem;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-timeline-quando {
+  font-size: 0.72rem;
+  color: var(--texto-mudo);
+  flex-shrink: 0;
+}
+
+/* ── acesso rápido ── */
+
+.dash-acesso-rapido { display: flex; flex-direction: column; gap: 2px; }
+
+.dash-acesso-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px;
+  border-radius: 7px;
+  font-size: 0.83rem;
+  font-weight: 500;
+  color: var(--texto-secundario);
+  text-decoration: none;
+  transition: background var(--transicao), color var(--transicao);
+}
+.dash-acesso-item:hover {
+  background: var(--sidebar-hover);
+  color: var(--texto);
+  text-decoration: none;
+}
+.dash-acesso-item .icon { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.85; }
+
+@media (max-width: 768px) {
+  .dash-resumo { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+}
