@@ -1,0 +1,47 @@
+{
+  "tabela": "evasao_frequencia",
+  "colunas": [
+    {
+      "nome": "id",
+      "tipo": "INTEIRO",
+      "modificadores": [
+        "CHAVE_PRIMARIA",
+        "AUTO"
+      ]
+    },
+    {
+      "nome": "aluno_id",
+      "tipo": "INTEIRO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "percentual",
+      "tipo": "DECIMAL",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "periodo_referencia",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "registrado_por",
+      "tipo": "TEXTO",
+      "modificadores": []
+    },
+    {
+      "nome": "registrado_em",
+      "tipo": "DATA_HORA",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    }
+  ],
+  "criada_em": "2026-08-16T00:00:00.000000"
+}
