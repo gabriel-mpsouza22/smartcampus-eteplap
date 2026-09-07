@@ -1,0 +1,13 @@
+{
+  "tabela": "chaves",
+  "colunas": [
+    { "nome": "id", "tipo": "INTEIRO", "modificadores": ["CHAVE_PRIMARIA", "AUTO"] },
+    { "nome": "nome", "tipo": "TEXTO", "modificadores": ["NAO_NULO"] },
+    { "nome": "local", "tipo": "TEXTO", "modificadores": [] },
+    { "nome": "icone", "tipo": "TEXTO", "modificadores": [] },
+    { "nome": "observacoes", "tipo": "TEXTO", "modificadores": [] },
+    { "nome": "ativa", "tipo": "BOOLEANO", "modificadores": [] },
+    { "nome": "criada_em", "tipo": "DATA_HORA", "modificadores": ["NAO_NULO"] }
+  ],
+  "criada_em": "2026-08-18T00:00:00.000000"
+}
