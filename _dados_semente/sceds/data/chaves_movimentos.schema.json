@@ -1,0 +1,17 @@
+{
+  "tabela": "chaves_movimentos",
+  "colunas": [
+    { "nome": "id", "tipo": "INTEIRO", "modificadores": ["CHAVE_PRIMARIA", "AUTO"] },
+    { "nome": "chave_id", "tipo": "INTEIRO", "modificadores": ["NAO_NULO"] },
+    { "nome": "chave_nome", "tipo": "TEXTO", "modificadores": ["NAO_NULO"] },
+    { "nome": "professor_id", "tipo": "INTEIRO", "modificadores": ["NAO_NULO"] },
+    { "nome": "professor_nome", "tipo": "TEXTO", "modificadores": ["NAO_NULO"] },
+    { "nome": "registrado_por", "tipo": "TEXTO", "modificadores": ["NAO_NULO"] },
+    { "nome": "retirado_em", "tipo": "DATA_HORA", "modificadores": ["NAO_NULO"] },
+    { "nome": "devolucao_prevista", "tipo": "DATA_HORA", "modificadores": ["NAO_NULO"] },
+    { "nome": "observacao", "tipo": "TEXTO", "modificadores": [] },
+    { "nome": "devolvido_em", "tipo": "DATA_HORA", "modificadores": [] },
+    { "nome": "devolvido_por", "tipo": "TEXTO", "modificadores": [] }
+  ],
+  "criada_em": "2026-08-19T00:00:00.000000"
+}
