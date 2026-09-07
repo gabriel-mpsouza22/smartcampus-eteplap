@@ -1,0 +1,18 @@
+{% extends "wizard/base.html" %}
+{% block titulo %}Instalação já concluída{% endblock %}
+{% block conteudo %}
+<div class="wizard-tela-bloqueio">
+  <div class="estado-vazio" style="max-width:480px; margin:80px auto; text-align:center;">
+    <div class="icone-caixa" aria-hidden="true">
+      <svg class="icon"><use href="#i-check"></use></svg>
+    </div>
+    <div class="estado-vazio-titulo">Este Smart Campus já está configurado</div>
+    <p class="estado-vazio-texto">
+      O assistente de instalação só pode ser usado uma vez, na configuração
+      inicial. Para alterar dados da instituição, módulos ativos ou usuários,
+      acesse o sistema normalmente e use a área de Administração.
+    </p>
+    <a href="/login" class="btn btn-primario mt-16">Ir para o login</a>
+  </div>
+</div>
+{% endblock %}
