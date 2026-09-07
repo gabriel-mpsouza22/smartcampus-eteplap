@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+
+{% block titulo %}Cadastro de Alunos{% endblock %}
+{% block topbar_titulo %}<svg class='icon'><use href='#i-graduation'></use></svg> Cadastro de Alunos{% endblock %}
+
+{% block topbar_acoes %}
+<a href="/alunos/promocao" class="btn btn-secundario btn-sm">
+  <svg class='icon'><use href='#i-trending-up'></use></svg> Avanço de ano letivo
+</a>
+<button class="btn btn-primario btn-sm" onclick="abrirModal()">
+  <svg class='icon'><use href='#i-plus'></use></svg> Novo aluno
+</button>
+{% endblock %}
+
+{% block estilos %}
+<style>
+  .al-filtros {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px;
+  }
+  .al-busca { position: relative; flex: 1; min-width: 220px; }
+  .al-busca input {
+    width: 100%; padding: 9px 14px 9px 34px; border: 1.5px solid var(--borda-forte);
+    border-radius: var(--raio); font-size: .86rem; outline: none;
+  }
+  .al-busca input:focus { border-color: var(--azul-medio); }
+  .al-busca-icone { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--texto-mudo); }
+  .al-select {
+    padding: 9px 12px; border: 1.5px solid var(--borda-forte); border-radius: var(--raio);
+    font-size: .86rem; font-family: var(--fonte-corpo); background: var(--card); color: var(--texto);
+  }
+  .al-contador { font-size: .78rem; color: var(--texto-mudo); margin-bottom: 10px; }
+
+  .al-tabela-wrap { overflow-x: auto; }
+  #tabela-alunos { width: 100%; border-collapse: collapse; }
+  #tabela-alunos th {
+    text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--texto-mudo); padding: 8px 12px; border-bottom: 2px solid var(--borda);
+  }
+  #tabela-alunos td { padding: 10px 12px; border-bottom: 1px solid var(--borda); font-size: .86rem; }
+  #tabela-alunos tr:hover td { background: var(--fundo); }
+  .al-nome { font-weight: 700; }
+  .al-acoes-col { white-space: nowrap; text-align: right; }
+  .al-btn-icone {
+    background: none; border: none; cursor: pointer; padding: 5px 7px; border-radius: 6px;
+    color: var(--texto-secundario); transition: background .15s, color .15s;
+  }
+  .al-btn-icone:hover { background: var(--bg-fundo2); }
+  .al-btn-icone.perigo:hover { background: var(--vermelho-claro); color: var(--vermelho); }
+
+  
+  .modal-fundo {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
+    align-items: center; justify-content: center; z-index: 200; padding: 16px;
+  }
+  .modal-fundo.visivel { display: flex; }
+  .modal-caixa {
+    background: var(--card); border-radius: var(--raio-lg); padding: 24px;
+    width: 100%; max-width: 420px; box-shadow: var(--sombra-lg);
+  }
+  .modal-titulo { font-family: var(--fonte-display); font-weight: 800; font-size: 1.05rem; margin-bottom: 16px; }
+  .modal-acoes { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+
+<div class="al-filtros">
+  <div class="al-busca">
+    <span class="al-busca-icone"><svg class='icon'><use href='#i-search'></use></svg></span>
+    <input type="text" id="al-busca" placeholder="Buscar por nome…" oninput="carregarAlunosComAtraso()">
+  </div>
+  <select class="al-select" id="al-filtro-turma" onchange="carregarAlunos()">
+    <option value="">Todas as turmas</option>
+    {% for turno, lista in turmas|groupby("turno") %}
+    <optgroup label="{{ turno }}">
+      {% for t in lista %}
+      <option value="{{ t.turma }}">{{ t.turma }}</option>
+      {% endfor %}
+    </optgroup>
+    {% endfor %}
+  </select>
+</div>
+
+<div class="al-contador" id="al-contador">Carregando…</div>
+
+<div class="card">
+  <div class="al-tabela-wrap">
+    <table id="tabela-alunos">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Matrícula</th>
+          <th>Turma</th>
+          <th>Série</th>
+          <th>Curso</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="al-corpo-tabela">
+        <tr><td colspan="6" style="text-align:center;color:var(--texto-mudo);padding:24px;">Carregando…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+<div class="modal-fundo" id="modal-aluno">
+  <div class="modal-caixa">
+    <div class="modal-titulo" id="modal-titulo">Novo aluno</div>
+    <form onsubmit="event.preventDefault(); salvarAluno();">
+      <input type="hidden" id="al-id">
+      <div class="campo">
+        <label>Nome completo</label>
+        <input type="text" id="al-nome" placeholder="Ex: João da Silva" autocomplete="off">
+      </div>
+      <div class="campo">
+        <label>Matrícula <span style="color:var(--texto-mudo);font-weight:400;">(opcional)</span></label>
+        <input type="text" id="al-matricula" placeholder="Ex: 12345" autocomplete="off">
+      </div>
+      <div class="campo">
+        <label>Turma</label>
+        <select id="al-turma">
+          <option value="">Selecione…</option>
+          {% for turno, lista in turmas|groupby("turno") %}
+          <optgroup label="{{ turno }}">
+            {% for t in lista %}
+            <option value="{{ t.turma }}">{{ t.turma }}</option>
+            {% endfor %}
+          </optgroup>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="modal-acoes">
+        <button type="button" class="btn btn-secundario" onclick="fecharModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primario" id="btn-salvar-aluno">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let atrasoBusca = null;
+
+document.addEventListener("DOMContentLoaded", carregarAlunos);
+
+function carregarAlunosComAtraso() {
+  clearTimeout(atrasoBusca);
+  atrasoBusca = setTimeout(carregarAlunos, 300);
+}
+
+async function carregarAlunos() {
+  const busca = document.getElementById("al-busca").value.trim();
+  const turma = document.getElementById("al-filtro-turma").value;
+
+  const params = new URLSearchParams();
+  if (busca) params.set("busca", busca);
+  if (turma) params.set("turma", turma);
+
+  const r = await api("get", `/alunos/api/lista?${params.toString()}`);
+  const corpo = document.getElementById("al-corpo-tabela");
+  const contador = document.getElementById("al-contador");
+
+  if (!r.ok) {
+    corpo.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--vermelho);padding:24px;">Erro ao carregar alunos.</td></tr>`;
+    contador.textContent = "";
+    return;
+  }
+
+  const alunos = r.dados;
+  contador.textContent = `${alunos.length} aluno${alunos.length === 1 ? "" : "s"} encontrado${alunos.length === 1 ? "" : "s"}`;
+
+  if (alunos.length === 0) {
+    corpo.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--texto-mudo);padding:24px;">
+      <svg class='icon'><use href='#i-inbox'></use></svg> Nenhum aluno encontrado.
+    </td></tr>`;
+    return;
+  }
+
+  corpo.innerHTML = alunos.map(a => `
+    <tr>
+      <td class="al-nome">${a.nome}</td>
+      <td style="color:var(--texto-mudo);font-family:var(--fonte-mono);font-size:.82rem;">${a.matricula || "—"}</td>
+      <td>${a.turma}</td>
+      <td>${a.serie}</td>
+      <td>${a.curso}</td>
+      <td class="al-acoes-col">
+        <button class="al-btn-icone" title="Editar" onclick='editarAluno(${JSON.stringify(a)})'>
+          <svg class='icon'><use href='#i-edit'></use></svg>
+        </button>
+        <button class="al-btn-icone perigo" title="Excluir" onclick="excluirAluno(${a.id}, '${(a.nome||'').replace(/'/g,"\\'")}')">
+          <svg class='icon'><use href='#i-close'></use></svg>
+        </button>
+      </td>
+    </tr>`).join("");
+}
+
+function abrirModal() {
+  document.getElementById("modal-titulo").textContent = "Novo aluno";
+  document.getElementById("al-id").value = "";
+  document.getElementById("al-nome").value = "";
+  document.getElementById("al-matricula").value = "";
+  document.getElementById("al-turma").value = "";
+  document.getElementById("modal-aluno").classList.add("visivel");
+  setTimeout(() => document.getElementById("al-nome").focus(), 50);
+}
+
+function editarAluno(aluno) {
+  document.getElementById("modal-titulo").textContent = "Editar aluno";
+  document.getElementById("al-id").value = aluno.id;
+  document.getElementById("al-nome").value = aluno.nome;
+  document.getElementById("al-matricula").value = aluno.matricula || "";
+  document.getElementById("al-turma").value = aluno.turma;
+  document.getElementById("modal-aluno").classList.add("visivel");
+}
+
+function fecharModal() {
+  document.getElementById("modal-aluno").classList.remove("visivel");
+}
+
+async function salvarAluno() {
+  const id        = document.getElementById("al-id").value;
+  const nome      = document.getElementById("al-nome").value.trim();
+  const matricula = document.getElementById("al-matricula").value.trim();
+  const turma     = document.getElementById("al-turma").value;
+
+  if (!nome || !turma) { mostrarAlerta("Preencha o nome e selecione a turma.", "aviso"); return; }
+
+  mostrarSpinner("btn-salvar-aluno");
+  const r = id
+    ? await api("put", `/alunos/api/alunos/${id}`, { nome, turma, matricula })
+    : await api("post", "/alunos/api/alunos", { nome, turma, matricula });
+  ocultarSpinner("btn-salvar-aluno");
+
+  if (r.ok) {
+    mostrarAlerta(id ? "Aluno atualizado!" : "Aluno cadastrado!", "sucesso");
+    fecharModal();
+    carregarAlunos();
+  } else {
+    mostrarAlerta(r.dados?.erro || r.erro || "Erro ao salvar aluno.", "erro");
+  }
+}
+
+async function excluirAluno(id, nome) {
+  const ok = await confirmarAcao({
+    titulo: `Excluir "${nome}"?`,
+    texto: "O aluno será removido do cadastro único e de todo o histórico vinculado a ele.",
+    rotuloConfirmar: "Excluir",
+    perigoso: true,
+  });
+  if (!ok) return;
+
+  const r = await api("delete", `/alunos/api/alunos/${id}`);
+  if (r.ok) { mostrarAlerta("Aluno removido.", "aviso"); carregarAlunos(); }
+  else mostrarAlerta(r.dados?.erro || "Erro ao remover aluno.", "erro");
+}
+
+document.getElementById("modal-aluno")?.addEventListener("click", (e) => {
+  if (e.target.id === "modal-aluno") fecharModal();
+});
+</script>
+{% endblock %}
