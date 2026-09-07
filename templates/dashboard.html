@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block titulo %}Início{% endblock %}
+{% block topbar_titulo %}Painel Principal{% endblock %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
+
+{% block conteudo %}
+
+<div class="dash-cabecalho mb-24">
+  <div>
+    <h2 class="secao-titulo">Olá, {{ usuario.nome.split(' ')[0] }}</h2>
+    <p class="secao-subtitulo" style="margin-bottom:0;">
+      {{ sigla_escola }} · {{ label_perfil }}
+    </p>
+  </div>
+  <div class="dash-status" title="Estado geral da instituição hoje">
+    {% if painel.atencao %}
+      <span class="dash-status-ponto dash-status-ponto--atencao"></span>
+      {{ painel.atencao|length }} item(ns) precisam de atenção
+    {% else %}
+      <span class="dash-status-ponto dash-status-ponto--ok"></span>
+      Operação normal
+    {% endif %}
+  </div>
+</div>
+
+{% if painel.resumo %}
+<section class="dash-resumo mb-24" aria-label="Resumo operacional">
+  {% for stat in painel.resumo %}
+  <a href="{{ stat.url }}" class="dash-stat">
+    <div class="dash-stat-icone dash-stat-icone--{{ stat.cor }}" aria-hidden="true">
+      <svg class="icon"><use href="#{{ stat.icone }}"></use></svg>
+    </div>
+    <div class="dash-stat-corpo">
+      <div class="dash-stat-valor">{{ stat.valor }}</div>
+      <div class="dash-stat-label">{{ stat.label }}</div>
+      {% if stat.sublabel %}<div class="dash-stat-sublabel">{{ stat.sublabel }}</div>{% endif %}
+    </div>
+  </a>
+  {% endfor %}
+</section>
+{% endif %}
+
+<div class="dash-grade-principal">
+
+  <div class="dash-coluna-principal">
+
+    {% if painel.atencao %}
+    <section class="card mb-24" aria-label="Área de atenção">
+      <div class="card-titulo">Área de atenção</div>
+      <div class="dash-lista-alertas">
+        {% for item in painel.atencao %}
+        <a href="{{ item.url }}" class="dash-alerta dash-alerta--{{ item.nivel }}">
+          <svg class="icon" aria-hidden="true"><use href="#{{ 'i-warning' if item.nivel == 'critico' else 'i-alert-bell' }}"></use></svg>
+          <div>
+            <div class="dash-alerta-titulo">{{ item.titulo }}</div>
+            <div class="dash-alerta-descricao">{{ item.descricao }}</div>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="card" aria-label="Atividade recente">
+      <div class="card-titulo">Atividade recente</div>
+      {% if painel.atividade %}
+      <ul class="dash-timeline">
+        {% for evento in painel.atividade %}
+        <li>
+          <a href="{{ evento.url }}" class="dash-timeline-item">
+            <svg class="icon dash-timeline-icone" aria-hidden="true"><use href="#{{ evento.icone }}"></use></svg>
+            <span class="dash-timeline-titulo">{{ evento.titulo }}</span>
+            <span class="dash-timeline-quando mono">{{ evento.quando[:16].replace('T', ' ') }}</span>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="estado-vazio" style="padding:24px 12px;">
+        <div class="icone-caixa" aria-hidden="true"><svg class="icon"><use href="#i-inbox"></use></svg></div>
+        <div class="estado-vazio-titulo">Nenhuma atividade recente</div>
+        <p class="estado-vazio-texto">Assim que houver movimentação nos módulos disponíveis para o seu perfil, ela aparecerá aqui.</p>
+      </div>
+      {% endif %}
+    </section>
+
+  </div>
+
+  <aside class="dash-coluna-lateral">
+    <section class="card" aria-label="Acesso rápido">
+      <div class="card-titulo">Acesso rápido</div>
+      {% if modulos %}
+      <div class="dash-acesso-rapido">
+        {% for modulo in modulos %}
+        <a href="{{ modulo.url }}" class="dash-acesso-item" title="Acessar {{ modulo.nome }}">
+          <svg class="icon" aria-hidden="true"><use href="#{{ modulo.icone }}"></use></svg>
+          {{ modulo.nome }}
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="estado-vazio" style="padding:24px 12px;">
+        <div class="icone-caixa" aria-hidden="true"><svg class='icon'><use href='#i-inbox'></use></svg></div>
+        <div class="estado-vazio-titulo">Nenhum módulo disponível</div>
+        <p class="estado-vazio-texto">Seu perfil de acesso ainda não tem módulos liberados. Fale com o administrador do sistema.</p>
+      </div>
+      {% endif %}
+    </section>
+
+    {% if usuario.perfil == 'admin' %}
+    <section class="card mt-24" aria-label="Ações administrativas">
+      <div class="card-titulo">Administração</div>
+      <div class="flex flex-col gap-8">
+        <a href="/admin/usuarios" class="btn btn-secundario">
+          <svg class="icon"><use href="#i-users"></use></svg> Gerenciar usuários
+        </a>
+        <a href="/admin/backup" class="btn btn-secundario">
+          <svg class="icon"><use href="#i-save"></use></svg> Fazer backup agora
+        </a>
+      </div>
+    </section>
+    {% endif %}
+  </aside>
+
+</div>
+
+{% endblock %}
