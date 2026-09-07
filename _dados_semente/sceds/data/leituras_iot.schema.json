@@ -1,0 +1,40 @@
+{
+  "tabela": "leituras_iot",
+  "colunas": [
+    {
+      "nome": "id",
+      "tipo": "INTEIRO",
+      "modificadores": [
+        "CHAVE_PRIMARIA",
+        "AUTO"
+      ]
+    },
+    {
+      "nome": "sensor_id",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "tipo",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "valor",
+      "tipo": "DECIMAL",
+      "modificadores": []
+    },
+    {
+      "nome": "data_hora",
+      "tipo": "DATA_HORA",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    }
+  ],
+  "criada_em": "2026-06-29T20:25:15.022685"
+}
