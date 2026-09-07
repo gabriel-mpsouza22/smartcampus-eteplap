@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block titulo %}Gerenciar Recursos{% endblock %}
+{% block topbar_titulo %}Recursos do Agendamento{% endblock %}
+
+{% block estilos %}
+<style>
+.filtros-linha { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px; }
+
+.grade-recursos { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px,1fr)); gap: 12px; }
+.recurso-card { background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio-lg); padding: 14px; display:flex; flex-direction:column; gap:10px; }
+.recurso-card-topo { display:flex; align-items:center; gap:10px; }
+.recurso-card-nome { font-weight:600; font-size:.9rem; }
+.recurso-card-id { font-family:var(--fonte-mono); font-size:.7rem; color:var(--texto-mudo); }
+
+.card-add {
+  border: 1.5px dashed var(--borda-forte); display: flex; align-items: center; justify-content: center;
+  min-height: 92px; cursor: pointer; color: var(--texto-secundario); font-weight: 600; font-size: .85rem;
+  gap: 8px; border-radius: var(--raio-lg); background: transparent;
+}
+.card-add:hover { border-color: var(--texto-secundario); background: var(--sidebar-hover); }
+
+.grade-icones { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-bottom:14px; }
+.icone-opcao {
+  padding:9px; display:flex; align-items:center; justify-content:center;
+  border:1.5px solid var(--borda); border-radius:var(--raio); cursor:pointer;
+  background:var(--card); color:var(--texto-secundario);
+}
+.icone-opcao:hover { background: var(--sidebar-hover); }
+.icone-opcao.selecionada { border-color: var(--preto); color: var(--preto); background: var(--bg-fundo2); }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+
+<div class="alerta alerta-info">
+  <svg class='icon'><use href='#i-info'></use></svg>
+  <span>Estes são os recursos que aparecem no módulo de Agendamento (laboratórios, salas, equipamentos). Remover um recurso não apaga o histórico de reservas já feitas.</span>
+</div>
+
+<div class="card">
+  <div class="filtros-linha">
+    <button class="filtro-chip ativo" data-tipo="" onclick="filtrarTipo(this,'')">Todos</button>
+    {% for t in tipos %}
+    <button class="filtro-chip" data-tipo="{{ t }}" onclick="filtrarTipo(this,'{{ t }}')">{{ t|capitalize }}</button>
+    {% endfor %}
+  </div>
+
+  <div class="grade-recursos" id="grade-recursos">
+    <div class="estado-carregando" style="grid-column:1/-1;"><span class="spinner"></span> Carregando…</div>
+  </div>
+</div>
+
+<dialog class="modal modal-formulario" id="dialogo-recurso">
+  <div class="modal-corpo">
+    <div class="modal-titulo" id="mr-titulo">Novo recurso</div>
+
+    <div class="campo mt-16">
+      <label for="mr-nome">Nome</label>
+      <input type="text" id="mr-nome" placeholder="Ex: Laboratório de Redes 3">
+    </div>
+    <div class="campo">
+      <label for="mr-tipo">Tipo</label>
+      <select id="mr-tipo">
+        {% for t in tipos %}
+        <option value="{{ t }}">{{ t|capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="campo">
+      <label>Ícone</label>
+      <div class="grade-icones" id="grade-icones"></div>
+    </div>
+  </div>
+  <div class="modal-acoes">
+    <button class="btn btn-secundario" id="btn-cancelar-recurso">Cancelar</button>
+    <button class="btn btn-primario" id="btn-salvar-recurso" onclick="salvarRecurso()">Salvar</button>
+  </div>
+</dialog>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ICONES = ["i-monitor","i-projector","i-ball","i-bar-chart","i-books","i-microscope","i-palette","i-drama","i-school","i-dumbbell","i-mic","i-box"];
+let tipoAtivo = "";
+let recursosCache = [];
+let recursoEditandoId = null;
+let iconeSelecionado = ICONES[0];
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("grade-icones").innerHTML = ICONES.map(i =>
+    `<div class="icone-opcao ${i === iconeSelecionado ? 'selecionada' : ''}" data-icone="${i}" onclick="escolherIcone(this,'${i}')">
+       <svg class='icon'><use href='#${i}'></use></svg>
+     </div>`
+  ).join("");
+  carregarRecursos();
+});
+
+document.getElementById("btn-cancelar-recurso").addEventListener("click", () => {
+  document.getElementById("dialogo-recurso").close();
+});
+
+function escolherIcone(el, icone) {
+  document.querySelectorAll(".icone-opcao").forEach(e => e.classList.remove("selecionada"));
+  el.classList.add("selecionada");
+  iconeSelecionado = icone;
+}
+
+function filtrarTipo(btn, tipo) {
+  document.querySelectorAll(".filtro-chip").forEach(b => b.classList.remove("ativo"));
+  btn.classList.add("ativo");
+  tipoAtivo = tipo;
+  renderizar();
+}
+
+async function carregarRecursos() {
+  const r = await api("get", "/admin/api/recursos");
+  const grade = document.getElementById("grade-recursos");
+  if (!r.ok) {
+    grade.innerHTML = `<div class="estado-erro" style="grid-column:1/-1;">
+      <div class="icone-caixa"><svg class='icon'><use href='#i-warning'></use></svg></div>
+      <div class="estado-erro-titulo">Não foi possível carregar os recursos</div>
+      <button class="btn btn-secundario" onclick="carregarRecursos()">Tentar de novo</button>
+    </div>`;
+    return;
+  }
+  recursosCache = r.dados;
+  renderizar();
+}
+
+function renderizar() {
+  const grade = document.getElementById("grade-recursos");
+  const lista = tipoAtivo ? recursosCache.filter(r => r.tipo === tipoAtivo) : recursosCache;
+
+  let html = lista.map(r => `
+    <div class="recurso-card">
+      <div class="recurso-card-topo">
+        <div class="icone-caixa"><svg class='icon'><use href='#${r.icone}'></use></svg></div>
+        <div>
+          <div class="recurso-card-nome">${r.nome}</div>
+          <div class="recurso-card-id">${r.id} · ${r.tipo}</div>
+        </div>
+      </div>
+      <div class="flex gap-8">
+        <button class="btn btn-sm btn-secundario" onclick="abrirEdicao('${r.id}')">Editar</button>
+        <button class="btn btn-sm btn-perigo" onclick="removerRecurso('${r.id}')">Remover</button>
+      </div>
+    </div>`).join("");
+
+  html += `<button type="button" class="card-add" onclick="abrirCriacao()">
+    <svg class='icon'><use href='#i-plus'></use></svg> Novo recurso
+  </button>`;
+
+  grade.innerHTML = html;
+}
+
+function abrirCriacao() {
+  recursoEditandoId = null;
+  document.getElementById("mr-titulo").textContent = "Novo recurso";
+  document.getElementById("mr-nome").value = "";
+  document.getElementById("mr-tipo").value = "laboratorio";
+  escolherIcone(document.querySelector(".icone-opcao"), ICONES[0]);
+  document.getElementById("dialogo-recurso").showModal();
+}
+
+function abrirEdicao(id) {
+  const r = recursosCache.find(x => x.id === id);
+  if (!r) return;
+  recursoEditandoId = id;
+  document.getElementById("mr-titulo").textContent = `Editar: ${r.nome}`;
+  document.getElementById("mr-nome").value = r.nome;
+  document.getElementById("mr-tipo").value = r.tipo;
+
+  const iconeEl = [...document.querySelectorAll(".icone-opcao")].find(e => e.dataset.icone === r.icone);
+  if (iconeEl) escolherIcone(iconeEl, r.icone);
+  else iconeSelecionado = r.icone;
+
+  document.getElementById("dialogo-recurso").showModal();
+}
+
+async function salvarRecurso() {
+  const nome = document.getElementById("mr-nome").value.trim();
+  const tipo = document.getElementById("mr-tipo").value;
+  if (!nome) { mostrarAlerta("Informe o nome do recurso.", "aviso"); return; }
+
+  mostrarSpinner("btn-salvar-recurso");
+  let r;
+  if (recursoEditandoId) {
+    r = await api("put", `/admin/api/recursos/${recursoEditandoId}`, { nome, tipo, icone: iconeSelecionado });
+  } else {
+    r = await api("post", "/admin/api/recursos", { nome, tipo, icone: iconeSelecionado });
+  }
+  ocultarSpinner("btn-salvar-recurso");
+
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao salvar.", "erro"); return; }
+
+  mostrarAlerta(recursoEditandoId ? "Recurso atualizado." : "Recurso criado.", "sucesso");
+  document.getElementById("dialogo-recurso").close();
+  carregarRecursos();
+}
+
+async function removerRecurso(id) {
+  const ok = await confirmarAcao({
+    titulo: "Remover este recurso?",
+    texto: "Ele deixa de aparecer no Agendamento. O histórico de reservas já feitas é mantido.",
+    rotuloConfirmar: "Remover",
+    perigoso: true,
+  });
+  if (!ok) return;
+  const r = await api("delete", `/admin/api/recursos/${id}`);
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao remover.", "erro", 6000); return; }
+  mostrarAlerta("Recurso removido.", "sucesso");
+  carregarRecursos();
+}
+</script>
+{% endblock %}
