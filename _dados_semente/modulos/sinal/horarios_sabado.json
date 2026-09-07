@@ -1,0 +1,12 @@
+{
+  "lista": "sabado",
+  "descricao": "Sábado",
+  "horarios": [
+    { "id": "S01", "hora": "07:20", "descricao": "Entrada manhã sábado",   "cancelado": false },
+    { "id": "S02", "hora": "09:00", "descricao": "Intervalo",              "cancelado": false },
+    { "id": "S03", "hora": "09:20", "descricao": "Retorno intervalo",      "cancelado": false },
+    { "id": "S04", "hora": "11:00", "descricao": "Intervalo final",        "cancelado": false },
+    { "id": "S05", "hora": "11:20", "descricao": "Retorno",                "cancelado": false },
+    { "id": "S06", "hora": "12:30", "descricao": "Saída sábado",           "cancelado": false }
+  ]
+}
