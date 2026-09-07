@@ -1,0 +1,37 @@
+# Versões fixadas em faixa compatível (permite patch, trava major/minor)
+# para build reprodutível. Antes de mover o teto de versão para cima em
+# qualquer uma delas, rodar `pip-audit` e a suíte de testes.
+flask~=3.1
+werkzeug~=3.1
+requests~=2.34
+pywebview~=6.2
+cryptography~=50.0
+
+# pywebview declara isto como dependência obrigatória no Windows (ver
+# Requires-Dist do próprio pacote: 'pythonnet; sys_platform == "win32"'),
+# mas como o requirements.txt não tinha essa condição, ninguém instalando
+# em Linux/Mac (onde não é necessário) percebia a ausência disso —
+# achado numa sessão de debug de build: mesmo o backend WebView2/
+# edgechromium (o que o Smart Campus realmente usa no Windows) importa
+# `clr` (fornecido pelo pythonnet) internamente, não é só o backend
+# antigo Windows Forms. Sem isto, NENHUM backend de janela do pywebview
+# funciona no Windows.
+pythonnet~=3.0; sys_platform == "win32"
+
+# Necessária para gerar o executável final (ver build_exe.py),
+# não usada em tempo de execução pela aplicação em si.
+pyinstaller~=6.11
+
+# Obrigatória em tempo de execução. core/auth.py ainda tem um fallback
+# para SHA-256+salt caso o wheel de bcrypt não exista para alguma
+# versão específica do Python (ver _hash_senha em core/auth.py), mas
+# isso é uma rede de segurança para builds excepcionais, não uma opção
+# válida de instalação — sempre garantir que este pacote está presente
+# antes de gerar o build de um cliente. Se o fallback for usado mesmo
+# assim, um aviso CRÍTICO aparece em logs/servidor.log e os hashes são
+# atualizados para bcrypt automaticamente assim que ele for instalado.
+bcrypt~=4.2
+
+# Dependências de desenvolvimento/teste (não necessárias no .exe final,
+# ver instalador/build_exe.py — ARQUIVOS_DE_DADOS não inclui tests/).
+pytest~=8.3
