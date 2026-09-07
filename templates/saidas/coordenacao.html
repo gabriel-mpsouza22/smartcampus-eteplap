@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block titulo %}Saídas de Alunos{% endblock %}
+{% block topbar_titulo %}<svg class='icon'><use href='#i-clipboard'></use></svg> Saídas de Alunos — Coordenação{% endblock %}
+
+{% block estilos %}
+<style>
+.cd-fila { display: flex; flex-direction: column; gap: 10px; max-width: 720px; }
+.cd-item { background: var(--card); border: 1px solid var(--borda); border-left: 4px solid var(--laranja); border-radius: var(--raio-lg); padding: 16px 18px; }
+.cd-item-topo { display: flex; align-items: center; gap: 10px; }
+.cd-item-nome { font-weight: 800; font-size: 1rem; }
+.cd-item-turma { font-size: .8rem; color: var(--texto-secundario); }
+.cd-item-hora { margin-left: auto; font-family: var(--fonte-mono); font-weight: 700; font-size: 1.05rem; color: var(--laranja); }
+.cd-item-motivo { font-size: .84rem; margin-top: 8px; }
+.cd-item-meta { font-size: .76rem; color: var(--texto-secundario); margin-top: 2px; }
+.cd-item-acoes { display: flex; gap: 8px; margin-top: 12px; }
+.cd-secao-titulo { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--texto-secundario); margin: 24px 0 10px; }
+.cd-secao-titulo:first-child { margin-top: 0; }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+<div class="flex justify-between items-center mb-16">
+  <span class="secao-titulo" style="font-size:1rem;margin:0;">Fila de autorizações</span>
+  <button class="btn btn-secundario btn-sm" onclick="carregar()"><svg class='icon'><use href='#i-refresh'></use></svg> Atualizar</button>
+</div>
+
+<div class="cd-secao-titulo">Aguardando sua análise</div>
+<div class="cd-fila" id="cd-pendentes"><div class="estado-vazio">Carregando…</div></div>
+
+<div class="cd-secao-titulo">Já tratadas hoje</div>
+<div class="cd-fila" id="cd-tratadas"></div>
+
+<dialog class="modal" id="dialogo-confirmar-senha">
+  <div class="modal-corpo">
+    <div class="modal-titulo">Confirme sua senha para autorizar</div>
+    <p class="text-sm text-mudo" style="margin-bottom:12px;">
+      Autorizar libera a Portaria a deixar <b id="dcs-nome-aluno"></b> sair. Digite sua senha para confirmar
+      que é você mesma quem está aprovando.
+    </p>
+    <div class="campo">
+      <label for="dcs-senha">Sua senha</label>
+      <input type="password" id="dcs-senha" autocomplete="current-password"
+             onkeydown="if(event.key==='Enter') confirmarAprovacao()">
+    </div>
+  </div>
+  <div class="modal-acoes">
+    <button class="btn btn-secundario" onclick="fecharDialogoSenha()">Cancelar</button>
+    <button class="btn btn-primario" id="btn-confirmar-aprovacao" onclick="confirmarAprovacao()">Autorizar</button>
+  </div>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const HOJE = "{{ hoje }}";
+
+document.addEventListener("DOMContentLoaded", () => {
+  carregar();
+  setInterval(carregar, 10000);
+});
+
+function minutosAte(horario) {
+  const [h, m] = horario.split(":").map(Number);
+  const alvo = new Date(); alvo.setHours(h, m, 0, 0);
+  return Math.round((alvo - new Date()) / 60000);
+}
+
+async function carregar() {
+  const r = await api("get", `/saidas/api/autorizacoes?data=${HOJE}`);
+  if (!r.ok) return;
+
+  const pendentes = r.dados.filter(a => a.status === "aguardando_coordenacao")
+    .sort((a, b) => minutosAte(a.horario_previsto) - minutosAte(b.horario_previsto));
+  const tratadas = r.dados.filter(a => a.status !== "aguardando_coordenacao");
+
+  const boxP = document.getElementById("cd-pendentes");
+  boxP.innerHTML = pendentes.length ? pendentes.map(a => {
+    const faltam = minutosAte(a.horario_previsto);
+    const urgente = faltam <= 10;
+    return `
+    <div class="cd-item" data-aut-id="${a.id}" data-aut-nome="${a.aluno_nome}" style="${urgente ? 'border-left-color: var(--vermelho, #E63946);' : ''}">
+      <div class="cd-item-topo">
+        <div>
+          <div class="cd-item-nome">${a.aluno_nome}</div>
+          <div class="cd-item-turma">${a.aluno_turma}</div>
+        </div>
+        <div class="cd-item-hora">${a.horario_previsto}${urgente ? " ⚠" : ""}</div>
+      </div>
+      <div class="cd-item-motivo">${a.motivo_label}${a.observacao ? " — " + a.observacao : ""}</div>
+      <div class="cd-item-meta">Retirado por: ${a.responsavel_nome ? a.responsavel_nome + (a.responsavel_relacao ? " (" + a.responsavel_relacao + ")" : "") : "não informado"}</div>
+      <div class="cd-item-meta">Solicitado por ${a.solicitante}</div>
+      <div class="cd-item-acoes">
+        <button class="btn btn-primario btn-sm" onclick="aprovar(${a.id})"><svg class='icon'><use href='#i-check'></use></svg> Autorizar</button>
+        <button class="btn btn-secundario btn-sm" onclick="rejeitar(${a.id})">Rejeitar</button>
+      </div>
+    </div>`;
+  }).join("") : `<div class="estado-vazio">Nenhuma solicitação pendente.</div>`;
+
+  document.getElementById("cd-tratadas").innerHTML = tratadas.map(a => `
+    <div class="cd-item" style="opacity:.7; border-left-color: var(--texto-mudo);">
+      <div class="cd-item-topo">
+        <div><div class="cd-item-nome">${a.aluno_nome}</div><div class="cd-item-turma">${a.aluno_turma}</div></div>
+        <div class="cd-item-hora">${a.horario_previsto}</div>
+      </div>
+      <div class="cd-item-motivo">${a.motivo_label} — ${a.status}</div>
+    </div>`).join("");
+}
+
+let autorizacaoParaAprovar = null;
+
+function aprovar(id) {
+  const item = document.querySelector(`[data-aut-id="${id}"]`);
+  const nome = item ? item.dataset.autNome : "este aluno";
+  autorizacaoParaAprovar = id;
+  document.getElementById("dcs-nome-aluno").textContent = nome;
+  document.getElementById("dcs-senha").value = "";
+  document.getElementById("dialogo-confirmar-senha").showModal();
+  setTimeout(() => document.getElementById("dcs-senha").focus(), 50);
+}
+
+function fecharDialogoSenha() {
+  document.getElementById("dialogo-confirmar-senha").close();
+  autorizacaoParaAprovar = null;
+}
+
+async function confirmarAprovacao() {
+  const senha = document.getElementById("dcs-senha").value;
+  if (!senha) { mostrarAlerta("Digite sua senha.", "aviso"); return; }
+
+  mostrarSpinner("btn-confirmar-aprovacao");
+  const r = await api("post", `/saidas/api/autorizacoes/${autorizacaoParaAprovar}/aprovar`, { senha });
+  ocultarSpinner("btn-confirmar-aprovacao");
+
+  if (!r.ok) {
+    mostrarAlerta(r.dados?.erro || "Erro ao autorizar.", "erro", 6000);
+    document.getElementById("dcs-senha").value = "";
+    document.getElementById("dcs-senha").focus();
+    return;
+  }
+
+  document.getElementById("dialogo-confirmar-senha").close();
+  mostrarAlerta("✓ Autorização enviada para a Portaria.", "sucesso");
+  carregar();
+}
+
+async function rejeitar(id) {
+  const motivo = prompt("Motivo da rejeição:");
+  if (motivo === null) return;
+  if (!motivo.trim()) { mostrarAlerta("Informe um motivo.", "aviso"); return; }
+  const r = await api("post", `/saidas/api/autorizacoes/${id}/rejeitar`, { motivo });
+  if (r.ok) { mostrarAlerta("Solicitação rejeitada.", "info"); carregar(); }
+  else mostrarAlerta(r.dados?.erro || "Erro ao rejeitar.", "erro");
+}
+</script>
+{% endblock %}
