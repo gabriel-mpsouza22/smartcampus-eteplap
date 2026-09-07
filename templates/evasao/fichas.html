@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+{% block titulo %}Fichas dos Alunos{% endblock %}
+{% block topbar_titulo %}Fichas dos Alunos por Turma{% endblock %}
+{% block topbar_acoes %}
+<a href="{{ url_for('evasao.index') }}" class="btn btn-secundario btn-sm"><svg class='icon'><use href='#i-arrow-left'></use></svg> Voltar para Evasão</a>
+{% endblock %}
+
+{% block estilos %}
+<style>
+
+.filtros-linha { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; align-items:center; }
+.busca-feed { position:relative; flex:1; min-width:180px; }
+.busca-feed input {
+  width:100%; padding:9px 14px 9px 34px; border:1.5px solid var(--borda-forte); border-radius:var(--raio);
+  font-size:.86rem; outline:none; background:var(--card); color:var(--texto);
+}
+.busca-feed input:focus { border-color: var(--azul-medio); }
+.busca-feed-icone { position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--texto-mudo); font-size:.85rem; }
+
+.turma-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:20px; }
+.turma-tab {
+  padding:7px 14px; border-radius:999px; border:1.5px solid var(--borda-forte); background:var(--card);
+  font-size:.78rem; font-weight:700; cursor:pointer; color:var(--texto-secundario); transition:all .15s;
+  white-space:nowrap;
+}
+.turma-tab.ativo { border-color: var(--preto); background: var(--bg-fundo2); color:var(--texto); }
+
+.turma-secao { margin-bottom:28px; }
+.turma-secao-titulo {
+  display:flex; align-items:center; gap:10px; margin-bottom:10px; font-family:var(--fonte-display);
+  font-weight:800; font-size:1.05rem;
+}
+.turma-secao-titulo .contagem { font-size:.75rem; font-weight:700; color:var(--texto-mudo); background:var(--fundo); padding:2px 10px; border-radius:999px; }
+
+.alunos-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(320px,1fr)); gap:12px; }
+
+.aluno-card {
+  background:var(--card); border:1px solid var(--borda); border-radius:var(--raio-lg);
+  padding:14px 16px; cursor:pointer; transition:box-shadow .15s;
+}
+.aluno-card:hover { box-shadow: var(--sombra-md); }
+.aluno-card-topo { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+.aluno-card-nome { font-weight:700; font-size:.95rem; }
+.aluno-card-meta { font-size:.76rem; color:var(--texto-mudo); margin-top:2px; }
+.score-pill {
+  display:inline-flex; align-items:center; justify-content:center; min-width:40px;
+  padding:3px 9px; border-radius:999px; font-weight:800; font-family:var(--fonte-display); font-size:.8rem; flex-shrink:0;
+}
+.aluno-card-resumo { font-size:.78rem; color:var(--texto-secundario); margin-top:8px; }
+.aluno-card-icones { display:flex; gap:10px; margin-top:10px; font-size:.76rem; color:var(--texto-mudo); }
+
+.aluno-detalhe {
+  display:none; margin-top:14px; padding-top:14px; border-top:1px dashed var(--borda-forte);
+}
+.aluno-detalhe.aberto { display:block; }
+
+.barra-componente { margin-bottom:10px; }
+.barra-componente-topo { display:flex; justify-content:space-between; font-size:.76rem; font-weight:700; color:var(--texto-secundario); margin-bottom:4px; }
+.barra-trilho { background:var(--borda); border-radius:999px; height:7px; overflow:hidden; }
+.barra-preenchimento { height:100%; border-radius:999px; }
+
+.lista-motivos { list-style:none; margin:8px 0 14px; padding:0; display:flex; flex-direction:column; gap:5px; }
+.lista-motivos li { font-size:.8rem; color:var(--texto); background:var(--fundo); padding:7px 10px; border-radius:var(--raio); border-left:3px solid var(--laranja); }
+
+.mini-item { border-left:4px solid var(--texto-mudo); border-radius:var(--raio); background:var(--fundo); padding:7px 10px; margin-bottom:5px; font-size:.78rem; }
+.mini-item-topo { display:flex; justify-content:space-between; font-weight:600; gap:8px; }
+
+.secao-titulo { font-size:.76rem; font-weight:700; color:var(--texto-secundario); text-transform:uppercase; letter-spacing:.04em; margin:14px 0 6px; }
+
+.resumo-box { background:var(--fundo); border-radius:var(--raio-lg); padding:12px; margin-top:6px; }
+.resumo-tabs { display:flex; gap:5px; flex-wrap:wrap; margin-bottom:8px; }
+.resumo-tab {
+  padding:5px 11px; border-radius:999px; border:1.5px solid var(--borda-forte); background:var(--card);
+  font-size:.72rem; font-weight:700; cursor:pointer; color:var(--texto-secundario);
+}
+.resumo-tab.ativo { border-color:var(--preto); background:var(--bg-fundo2); color:var(--texto); }
+.resumo-texto {
+  font-size:.82rem; color:var(--texto); white-space:pre-wrap; line-height:1.55;
+  background:var(--card); border:1px solid var(--borda); border-radius:var(--raio); padding:10px 12px; min-height:60px;
+}
+.resumo-acoes { display:flex; justify-content:flex-end; margin-top:8px; }
+
+.estado-vazio-icone { font-size:2rem; margin-bottom:10px; }
+
+@media (max-width: 640px) {
+  .alunos-grid { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+
+{% block conteudo %}
+
+<div class="filtros-linha">
+  <div class="busca-feed">
+    <span class="busca-feed-icone"><svg class='icon'><use href='#i-search'></use></svg></span>
+    <input type="text" id="busca-aluno" placeholder="Buscar por aluno…" oninput="debounceBusca()">
+  </div>
+</div>
+
+<div class="turma-tabs" id="turma-tabs">
+  <button class="turma-tab ativo" data-turma="" onclick="filtrarTurma(this,'')">Todas as turmas</button>
+  {% for t in turmas %}
+  <button class="turma-tab" data-turma="{{ t.turma }}" onclick="filtrarTurma(this,'{{ t.turma }}')">{{ t.turma }} — {{ t.curso }}</button>
+  {% endfor %}
+</div>
+
+<div id="fichas-container">
+  <div class="estado-vazio"><div class="estado-vazio-icone"><svg class='icon'><use href='#i-clock'></use></svg></div>Carregando…</div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const LABELS_RESUMO = { geral: 'Visão geral', familia: 'Reunião com a família', conselho: 'Conselho de classe', alerta: 'Alerta rápido' };
+
+let timerBusca = null;
+let turmaAtiva = "";
+let dadosCache = [];
+let resumoAtivoPorAluno = {};
+
+document.addEventListener("DOMContentLoaded", carregarFichas);
+
+function debounceBusca() {
+  clearTimeout(timerBusca);
+  timerBusca = setTimeout(carregarFichas, 300);
+}
+
+function filtrarTurma(btn, turma) {
+  document.querySelectorAll(".turma-tab").forEach(b => b.classList.remove("ativo"));
+  btn.classList.add("ativo");
+  turmaAtiva = turma;
+  carregarFichas();
+}
+
+async function carregarFichas() {
+  const busca = document.getElementById("busca-aluno").value.trim();
+  const params = new URLSearchParams();
+  if (busca) params.set("busca", busca);
+  if (turmaAtiva) params.set("turma", turmaAtiva);
+
+  const container = document.getElementById("fichas-container");
+  const r = await api("get", `/evasao/api/fichas?${params}`);
+
+  if (!r.ok) { container.innerHTML = `<div class="estado-vazio">Erro ao carregar.</div>`; return; }
+  dadosCache = r.dados;
+
+  if (dadosCache.length === 0 || dadosCache.every(g => g.alunos.length === 0)) {
+    container.innerHTML = `<div class="estado-vazio"><div class="estado-vazio-icone"><svg class='icon'><use href='#i-inbox'></use></svg></div>Nenhum aluno encontrado.</div>`;
+    return;
+  }
+
+  container.innerHTML = dadosCache.filter(g => g.alunos.length > 0).map(grupoHtml).join("");
+}
+
+function grupoHtml(g) {
+  return `
+    <div class="turma-secao">
+      <div class="turma-secao-titulo">
+        <svg class='icon'><use href='#i-school'></use></svg> ${g.turma} <span class="text-sm text-mudo" style="font-weight:600;">${g.curso}</span>
+        <span class="contagem">${g.alunos.length} aluno(s)</span>
+      </div>
+      <div class="alunos-grid">
+        ${g.alunos.map(a => alunoCardHtml(a, g.turma)).join("")}
+      </div>
+    </div>`;
+}
+
+function idSeguro(turma, alunoId) { return `aluno-${turma}-${alunoId}`.replace(/[^a-zA-Z0-9-]/g, "_"); }
+
+function alunoCardHtml(a, turma) {
+  const uid = idSeguro(turma, a.id);
+  const motivos = a.motivos.slice(0, 2).join(" · ") || "Sem sinais de risco no momento";
+  const emprestimoAberto = a.emprestimos.find(e => !e.devolvido);
+
+  return `
+    <div class="aluno-card" onclick="alternarDetalhe('${uid}', event)">
+      <div class="aluno-card-topo">
+        <div>
+          <div class="aluno-card-nome">${a.nome}</div>
+          <div class="aluno-card-meta">${a.serie} · ${a.turma} · ${a.curso}${a.tecnico_ti ? ' · Técnico em TI' : ''}</div>
+        </div>
+        <span class="score-pill pill pill-${a.nivel.id}">${a.score.toFixed(0)}</span>
+      </div>
+      <div class="aluno-card-resumo">${motivos}</div>
+      <div class="aluno-card-icones">
+        <span><svg class='icon'><use href='#i-clipboard'></use></svg> ${a.ocorrencias.length} ocorrência(s)</span>
+        <span><svg class='icon'><use href='#i-book'></use></svg> ${emprestimoAberto ? 'com "' + emprestimoAberto.livro_nome + '"' : (a.emprestimos.length ? 'sem livro no momento' : 'nunca usou a biblioteca')}</span>
+        <span><svg class='icon'><use href='#i-target'></use></svg> ${a.frequencia_atual ? a.frequencia_atual.percentual.toFixed(0) + '% freq.' : 'sem freq. registrada'}</span>
+      </div>
+
+      <div class="aluno-detalhe" id="detalhe-${uid}" onclick="event.stopPropagation()">
+        ${detalheHtml(a)}
+      </div>
+    </div>`;
+}
+
+function detalheHtml(a) {
+  const labels = { frequencia: "Frequência", disciplinar: "Disciplinar", engajamento: "Engajamento" };
+  const componentesHtml = Object.entries(a.componentes).map(([chave, valor]) => {
+    const pct = valor === null ? 0 : valor;
+    const semDado = valor === null;
+    return `
+      <div class="barra-componente">
+        <div class="barra-componente-topo">
+          <span>${labels[chave]} ${semDado ? '(sem dado)' : ''}</span>
+          <span>${semDado ? '—' : pct.toFixed(0)}</span>
+        </div>
+        <div class="barra-trilho">
+          <div class="barra-preenchimento ${semDado ? '' : 'preenchimento-' + a.nivel.id}" style="width:${pct}%;"></div>
+        </div>
+      </div>`;
+  }).join("");
+
+  const motivosHtml = a.motivos.length
+    ? a.motivos.map(m => `<li>${m}</li>`).join("")
+    : `<li class="borda-baixo">Nenhum sinal de risco identificado no momento.</li>`;
+
+  const ocorrenciasHtml = a.ocorrencias.length === 0
+    ? `<div class="text-mudo text-xs">Nenhuma ocorrência registrada.</div>`
+    : a.ocorrencias.slice(0, 6).map(o => `
+          <div class="mini-item borda-tipo-${o.tipo_info.cor}">
+            <div class="mini-item-topo">
+              <span class="pill-texto-tipo-${o.tipo_info.cor}">${o.tipo_info.nome}</span>
+              <span class="text-mudo text-xs">${formatarDataHora(o.data_hora)}</span>
+            </div>
+            <div>${o.descricao}</div>
+          </div>`
+      ).join("");
+
+  const emprestimosHtml = a.emprestimos.length === 0
+    ? `<div class="text-mudo text-xs">Nenhum empréstimo registrado.</div>`
+    : a.emprestimos.slice(0, 6).map(e => {
+        const atrasado = !e.devolvido && e.data_prevista_devolucao && new Date(e.data_prevista_devolucao) < new Date();
+        const classe = atrasado ? "borda-critico" : (e.devolvido ? "borda-baixo" : "borda-tipo-azul");
+        return `
+          <div class="mini-item ${classe}">
+            <div class="mini-item-topo">
+              <span><svg class='icon'><use href='#i-book'></use></svg> ${e.livro_nome}</span>
+              <span class="text-mudo text-xs">${e.devolvido ? 'Devolvido' : (atrasado ? 'Em atraso' : 'Emprestado')}</span>
+            </div>
+            <div class="text-xs text-mudo">Emprestado em ${e.data_emprestimo_br} · previsão ${e.data_prevista_devolucao_br}</div>
+          </div>`;
+      }).join("");
+
+  const uidResumo = `resumo-${idSeguro(a.turma, a.id)}`;
+  const resumoAtivo = resumoAtivoPorAluno[a.id] || "geral";
+
+  return `
+    <div class="secao-titulo">Componentes do score</div>
+    ${componentesHtml}
+
+    <div class="secao-titulo">Motivos apontados</div>
+    <ul class="lista-motivos">${motivosHtml}</ul>
+
+    <div class="secao-titulo">Últimas ocorrências disciplinares</div>
+    ${ocorrenciasHtml}
+
+    <div class="secao-titulo">Biblioteca — livros do aluno</div>
+    ${emprestimosHtml}
+
+    <div class="secao-titulo">Resumo pronto para apresentar</div>
+    <div class="resumo-box">
+      <div class="resumo-tabs">
+        ${Object.keys(LABELS_RESUMO).map(chave => `
+          <button class="resumo-tab ${chave === resumoAtivo ? 'ativo' : ''}"
+                  onclick="trocarResumo(event, ${a.id}, '${chave}', '${uidResumo}')">${LABELS_RESUMO[chave]}</button>
+        `).join("")}
+      </div>
+      <div class="resumo-texto" id="${uidResumo}">${a.resumos[resumoAtivo]}</div>
+      <div class="resumo-acoes">
+        <button class="btn btn-secundario btn-sm" onclick="copiarResumo(event, ${a.id}, '${uidResumo}')"><svg class='icon'><use href='#i-clipboard'></use></svg> Copiar resumo</button>
+      </div>
+    </div>
+  `;
+}
+
+function alternarDetalhe(uid, event) {
+  if (event.target.closest(".resumo-box")) return;
+  const el = document.getElementById(`detalhe-${uid}`);
+  if (!el) return;
+  el.classList.toggle("aberto");
+}
+
+function trocarResumo(event, alunoId, chave, uidResumo) {
+  event.stopPropagation();
+  resumoAtivoPorAluno[alunoId] = chave;
+  const aluno = dadosCache.flatMap(g => g.alunos).find(a => a.id === alunoId);
+  if (!aluno) return;
+
+  document.getElementById(uidResumo).textContent = aluno.resumos[chave];
+
+  const box = document.getElementById(uidResumo).closest(".resumo-box");
+  box.querySelectorAll(".resumo-tab").forEach(btn => {
+    btn.classList.toggle("ativo", btn.textContent === LABELS_RESUMO[chave]);
+  });
+}
+
+async function copiarResumo(event, alunoId, uidResumo) {
+  event.stopPropagation();
+  const texto = document.getElementById(uidResumo).textContent;
+  try {
+    await navigator.clipboard.writeText(texto);
+    mostrarAlerta("Resumo copiado!", "sucesso");
+  } catch (e) {
+    mostrarAlerta("Não foi possível copiar automaticamente. Selecione o texto manualmente.", "aviso");
+  }
+}
+</script>
+{% endblock %}
