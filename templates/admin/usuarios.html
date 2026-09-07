@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+{% block titulo %}Usuários{% endblock %}
+{% block topbar_titulo %}Gestão de Usuários{% endblock %}
+
+{% block estilos %}
+<style>
+.us-layout { display:grid; grid-template-columns:320px 1fr; gap:20px; align-items:start; }
+@media (max-width:860px) { .us-layout { grid-template-columns:1fr; } }
+.painel-novo-usuario { position:sticky; top:76px; }
+.campo-senha-linha { display:flex; gap:8px; }
+.campo-senha-linha input { flex:1; }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+<div class="mb-24">
+  <h2 class="secao-titulo">Usuários</h2>
+  <p class="secao-subtitulo">
+    Cada senha é única em todo o sistema — ela também identifica o cargo de quem entra.
+    Para criar ou ajustar cargos (o que cada um acessa, e em quais turnos), veja
+    <a href="/admin/cargos">Cargos e Permissões</a>.
+  </p>
+</div>
+
+<div class="us-layout">
+
+  <div class="card painel-novo-usuario">
+    <div class="card-titulo">Novo usuário</div>
+
+    <div class="campo">
+      <label for="nu-nome">Nome</label>
+      <input type="text" id="nu-nome" placeholder="Nome completo" oninput="atualizarSugestaoSenha()">
+    </div>
+    <div class="campo">
+      <label for="nu-cargo">Cargo</label>
+      <select id="nu-cargo">
+        {% for c in cargos %}
+        <option value="{{ c.id }}">{{ c.nome }}{% if not c.escopo_turno or 'todos' in c.escopo_turno %}{% else %} — {{ c.escopo_turno | join(', ') }}{% endif %}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="campo">
+      <label for="nu-senha">Senha</label>
+      <div class="campo-senha-linha">
+        <input type="text" id="nu-senha" placeholder="Mínimo 6 caracteres">
+        <button type="button" class="btn btn-secundario" onclick="atualizarSugestaoSenha(true)" title="Gerar senha aleatória">
+          <svg class='icon'><use href='#i-shuffle'></use></svg> Gerar
+        </button>
+      </div>
+    </div>
+
+    <button class="btn btn-primario w-full" id="btn-criar-usuario" onclick="criarUsuario()">
+      Cadastrar usuário
+    </button>
+  </div>
+
+  <div>
+    <div class="tabela-wrapper card" style="padding:0;">
+      <table>
+        <thead>
+          <tr><th>Nome</th><th>Cargo</th><th>Status</th><th>Cadastrado em</th><th>Ações</th></tr>
+        </thead>
+        <tbody id="corpo-usuarios">
+          <tr><td colspan="5"><div class="estado-carregando"><span class="spinner"></span> Carregando…</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<dialog class="modal" id="dialogo-cargo-usuario">
+  <div class="modal-corpo">
+    <div class="modal-titulo" id="mcu-titulo">Trocar cargo</div>
+    <div class="campo">
+      <label for="mcu-cargo">Novo cargo</label>
+      <select id="mcu-cargo">
+        {% for c in cargos %}
+        <option value="{{ c.id }}">{{ c.nome }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <div class="modal-acoes">
+    <button class="btn btn-secundario" onclick="document.getElementById('dialogo-cargo-usuario').close()">Cancelar</button>
+    <button class="btn btn-primario" id="btn-salvar-cargo-usuario" onclick="salvarCargoUsuario()">Salvar</button>
+  </div>
+</dialog>
+
+<dialog class="modal" id="dialogo-senha">
+  <div class="modal-corpo" style="text-align:center;">
+    <div class="icone-caixa" style="margin:0 auto 12px;"><svg class='icon'><use href='#i-key'></use></svg></div>
+    <div class="modal-titulo" id="ms-titulo"></div>
+    <div style="display:flex; align-items:center; gap:8px; margin:14px 0;">
+      <div class="mono" id="ms-senha" style="flex:1; font-size:1.3rem; font-weight:700; background:var(--bg-fundo2); border-radius:var(--raio); padding:12px; letter-spacing:.03em; text-align:left;"></div>
+      <button type="button" class="btn btn-secundario btn-sm" id="btn-copiar-senha" title="Copiar senha" style="flex-shrink:0;">
+        <svg class="icon"><use href="#i-copy"></use></svg>
+      </button>
+    </div>
+    <p class="modal-texto">Anote agora — esta senha não pode ser recuperada depois.</p>
+  </div>
+  <div class="modal-acoes" style="justify-content:center;">
+    <button class="btn btn-primario" id="btn-fechar-senha" style="min-width:140px;">Já anotei</button>
+  </div>
+</dialog>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const LABELS_PERFIL = {{ labels_perfil | tojson }};
+let usuariosCache = [];
+let usuarioTrocandoCargoId = null;
+
+document.addEventListener("DOMContentLoaded", carregarUsuarios);
+document.getElementById("btn-fechar-senha").addEventListener("click", () => {
+  document.getElementById("dialogo-senha").close();
+});
+document.getElementById("btn-copiar-senha").addEventListener("click", async () => {
+  const senha = document.getElementById("ms-senha").textContent;
+  try {
+    await navigator.clipboard.writeText(senha);
+    mostrarAlerta("Senha copiada para a área de transferência.", "sucesso", 3000);
+  } catch (e) {
+    mostrarAlerta("Não foi possível copiar automaticamente — selecione e copie manualmente.", "aviso", 5000);
+  }
+});
+
+async function carregarUsuarios() {
+  const r = await api("get", "/admin/api/usuarios");
+  const corpo = document.getElementById("corpo-usuarios");
+  if (!r.ok) {
+    corpo.innerHTML = `<tr><td colspan="5">
+      <div class="estado-erro">
+        <div class="icone-caixa"><svg class='icon'><use href='#i-warning'></use></svg></div>
+        <div class="estado-erro-titulo">Não foi possível carregar os usuários</div>
+        <p class="estado-vazio-texto">Verifique sua conexão e tente novamente.</p>
+        <button class="btn btn-secundario" onclick="carregarUsuarios()">Tentar de novo</button>
+      </div></td></tr>`;
+    return;
+  }
+
+  usuariosCache = r.dados;
+  if (r.dados.length === 0) {
+    corpo.innerHTML = `<tr><td colspan="5">
+      <div class="estado-vazio">
+        <div class="icone-caixa"><svg class='icon'><use href='#i-users'></use></svg></div>
+        <div class="estado-vazio-titulo">Nenhum usuário cadastrado</div>
+        <p class="estado-vazio-texto">Use o formulário ao lado para cadastrar o primeiro usuário.</p>
+      </div></td></tr>`;
+    return;
+  }
+
+  corpo.innerHTML = r.dados.map(u => `
+    <tr>
+      <td><b>${u.nome}</b></td>
+      <td><span class="badge badge-azul">${u.cargo_nome || LABELS_PERFIL[u.perfil] || u.perfil}</span></td>
+      <td><span class="badge ${u.ativo ? 'badge-verde' : 'badge-vermelho'}">${u.ativo ? 'Ativo' : 'Inativo'}</span></td>
+      <td class="text-sm text-mudo">${formatarData(u.criado_em)}</td>
+      <td>
+        <div class="flex gap-8">
+          <button class="btn btn-sm btn-secundario" onclick="abrirTrocaCargo(${u.id}, '${escapeAttr(u.nome)}')">Trocar cargo</button>
+          <button class="btn btn-sm btn-secundario" onclick="redefinirSenha(${u.id}, '${escapeAttr(u.nome)}')">Redefinir senha</button>
+          ${u.ativo
+            ? `<button class="btn btn-sm btn-perigo" onclick="desativarUsuario(${u.id})">Desativar</button>`
+            : `<button class="btn btn-sm btn-sucesso" onclick="reativarUsuario(${u.id})">Reativar</button>`}
+        </div>
+      </td>
+    </tr>`).join("");
+}
+
+function abrirTrocaCargo(id, nome) {
+  usuarioTrocandoCargoId = id;
+  document.getElementById("mcu-titulo").textContent = `Trocar cargo — ${nome}`;
+  document.getElementById("dialogo-cargo-usuario").showModal();
+}
+
+async function salvarCargoUsuario() {
+  const cargoId = parseInt(document.getElementById("mcu-cargo").value, 10);
+  mostrarSpinner("btn-salvar-cargo-usuario");
+  const r = await api("put", `/admin/api/usuarios/${usuarioTrocandoCargoId}/cargo`, { cargo_id: cargoId });
+  ocultarSpinner("btn-salvar-cargo-usuario");
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao trocar cargo.", "erro", 6000); return; }
+  document.getElementById("dialogo-cargo-usuario").close();
+  mostrarAlerta("Cargo atualizado.", "sucesso");
+  carregarUsuarios();
+}
+
+function escapeAttr(s){ return (s||"").replace(/'/g,"&#39;"); }
+
+/* ── Sugestão de senha ao digitar o nome ───────────────── */
+let timerSugestao = null;
+async function atualizarSugestaoSenha(forcar=false) {
+  const nome = document.getElementById("nu-nome").value.trim();
+  const campoSenha = document.getElementById("nu-senha");
+  if (!forcar && campoSenha.value) return; // não sobrescreve o que o admin já digitou
+
+  clearTimeout(timerSugestao);
+  timerSugestao = setTimeout(async () => {
+    const r = await api("get", `/admin/api/usuarios/sugerir-senha?nome=${encodeURIComponent(nome)}`);
+    if (r.ok) campoSenha.value = r.dados.senha;
+  }, forcar ? 0 : 400);
+}
+
+/* ── Criar usuário ──────────────────────────────────────── */
+async function criarUsuario() {
+  const nome    = document.getElementById("nu-nome").value.trim();
+  const cargoId = parseInt(document.getElementById("nu-cargo").value, 10);
+  const senha   = document.getElementById("nu-senha").value.trim();
+
+  if (!nome || !senha) { mostrarAlerta("Preencha nome e senha.", "aviso"); return; }
+
+  mostrarSpinner("btn-criar-usuario");
+  const r = await api("post", "/admin/api/usuarios", { nome, cargo_id: cargoId, senha });
+  ocultarSpinner("btn-criar-usuario");
+
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao cadastrar.", "erro", 6000); return; }
+
+  mostrarSenhaModal(nome, senha, "Usuário cadastrado");
+  document.getElementById("nu-nome").value = "";
+  document.getElementById("nu-senha").value = "";
+  carregarUsuarios();
+}
+
+/* ── Ativar/Desativar ───────────────────────────────────── */
+async function desativarUsuario(id) {
+  const ok = await confirmarAcao({
+    titulo: "Desativar usuário?",
+    texto: "Ele não conseguirá mais fazer login. Pode ser reativado depois.",
+    rotuloConfirmar: "Desativar",
+    perigoso: true,
+  });
+  if (!ok) return;
+  const r = await api("post", `/admin/api/usuarios/${id}/desativar`);
+  if (r.ok) { mostrarAlerta("Usuário desativado.", "aviso"); carregarUsuarios(); }
+  else mostrarAlerta(r.dados?.erro || "Erro.", "erro");
+}
+
+async function reativarUsuario(id) {
+  const r = await api("post", `/admin/api/usuarios/${id}/reativar`);
+  if (r.ok) { mostrarAlerta("Usuário reativado.", "sucesso"); carregarUsuarios(); }
+  else mostrarAlerta(r.dados?.erro || "Erro.", "erro");
+}
+
+/* ── Redefinir senha ────────────────────────────────────── */
+async function redefinirSenha(id, nome) {
+  const ok = await confirmarAcao({
+    titulo: `Gerar nova senha para ${nome}?`,
+    texto: "A senha antiga deixará de funcionar imediatamente.",
+    rotuloConfirmar: "Gerar nova senha",
+    perigoso: true,
+  });
+  if (!ok) return;
+  const r = await api("post", `/admin/api/usuarios/${id}/redefinir-senha`, {});
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro.", "erro"); return; }
+  mostrarSenhaModal(nome, r.dados.nova_senha, "Nova senha gerada");
+}
+
+/* ── Modal de senha ─────────────────────────────────────── */
+function mostrarSenhaModal(nome, senha, titulo) {
+  document.getElementById("ms-titulo").textContent = `${titulo} — ${nome}`;
+  document.getElementById("ms-senha").textContent = senha;
+  document.getElementById("dialogo-senha").showModal();
+}
+
+function formatarData(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("pt-BR");
+}
+</script>
+{% endblock %}
