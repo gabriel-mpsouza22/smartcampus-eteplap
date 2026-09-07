@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block titulo %}Backup{% endblock %}
+{% block topbar_titulo %}Backup do Sistema{% endblock %}
+
+{% block estilos %}
+<style>
+.historico-item {
+  background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio);
+  padding: 12px 14px; display: flex; align-items: center; gap: 14px; margin-bottom: 6px;
+}
+.historico-info { flex: 1; min-width: 0; }
+.historico-data { font-weight: 600; font-size: 0.88rem; }
+.historico-meta { font-size: 0.76rem; color: var(--texto-mudo); margin-top: 1px; }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+
+<div class="card mb-24" style="text-align:center; padding:28px;">
+  <div class="icone-caixa" style="margin:0 auto 12px; width:44px; height:44px; border-radius:12px;">
+    <svg class="icon icon-lg"><use href="#i-save"></use></svg>
+  </div>
+  <div class="card-titulo" style="margin-bottom:2px;">Fazer backup agora</div>
+  <p class="text-sm text-secundario mb-16">Copia todas as tabelas do banco de dados e gera um arquivo .zip para download.</p>
+  <button class="btn btn-primario" id="btn-fazer-backup" onclick="executarBackup()">
+    Gerar backup completo
+  </button>
+</div>
+
+<div class="secao-titulo" style="font-size:1rem;">Histórico de backups</div>
+<div id="lista-historico">
+  <div class="estado-carregando"><span class="spinner"></span> Carregando…</div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", carregarHistorico);
+
+async function executarBackup() {
+  mostrarSpinner("btn-fazer-backup");
+  const r = await api("post", "/admin/api/backup/executar");
+  ocultarSpinner("btn-fazer-backup");
+
+  if (r.ok) {
+    mostrarAlerta(`Backup concluído: ${r.dados.total_tabelas} tabela(s).`, "sucesso");
+    carregarHistorico();
+  } else {
+    mostrarAlerta(r.dados?.erro || "Erro ao gerar backup.", "erro");
+  }
+}
+
+async function carregarHistorico() {
+  const r = await api("get", "/admin/api/backup/historico");
+  const el = document.getElementById("lista-historico");
+  if (!r.ok) {
+    el.innerHTML = `<div class="estado-erro">
+      <div class="icone-caixa"><svg class='icon'><use href='#i-warning'></use></svg></div>
+      <div class="estado-erro-titulo">Não foi possível carregar o histórico</div>
+      <button class="btn btn-secundario" onclick="carregarHistorico()">Tentar de novo</button>
+    </div>`;
+    return;
+  }
+  if (r.dados.length === 0) {
+    el.innerHTML = `<div class="estado-vazio">
+      <div class="icone-caixa"><svg class='icon'><use href='#i-inbox'></use></svg></div>
+      <div class="estado-vazio-titulo">Nenhum backup realizado ainda</div>
+      <p class="estado-vazio-texto">Use o botão acima para gerar o primeiro.</p>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = r.dados.map(b => `
+    <div class="historico-item">
+      <div class="icone-caixa"><svg class='icon'><use href='#i-database'></use></svg></div>
+      <div class="historico-info">
+        <div class="historico-data">${formatarDataHoraBackup(b.data_hora)}</div>
+        <div class="historico-meta">${b.total_tabelas} tabela(s) · ${b.tamanho_kb} KB</div>
+      </div>
+      <div class="flex gap-8">
+        ${b.zip_disponivel ? `<a class="btn btn-sm btn-secundario" href="/admin/api/backup/download/${b.nome}">Baixar</a>` : ""}
+        <button class="btn btn-sm btn-perigo" onclick="removerBackup('${b.nome}')">Excluir</button>
+      </div>
+    </div>`).join("");
+}
+
+async function removerBackup(nome) {
+  const ok = await confirmarAcao({
+    titulo: "Excluir este backup?",
+    texto: "O arquivo será apagado permanentemente e não poderá ser recuperado.",
+    rotuloConfirmar: "Excluir",
+    perigoso: true,
+  });
+  if (!ok) return;
+  const r = await api("delete", `/admin/api/backup/${nome}`);
+  if (r.ok) { mostrarAlerta("Backup removido.", "aviso"); carregarHistorico(); }
+  else mostrarAlerta(r.dados?.erro || "Erro.", "erro");
+}
+
+function formatarDataHoraBackup(raw) {
+  if (!raw || raw.length < 15) return raw;
+  const ano = raw.slice(0,4), mes = raw.slice(4,6), dia = raw.slice(6,8);
+  const h = raw.slice(9,11), m = raw.slice(11,13), s = raw.slice(13,15);
+  return `${dia}/${mes}/${ano} às ${h}:${m}:${s}`;
+}
+</script>
+{% endblock %}
