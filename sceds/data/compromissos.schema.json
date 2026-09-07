@@ -1,0 +1,47 @@
+{
+  "tabela": "compromissos",
+  "colunas": [
+    {
+      "nome": "id",
+      "tipo": "INTEIRO",
+      "modificadores": [
+        "CHAVE_PRIMARIA",
+        "AUTO"
+      ]
+    },
+    {
+      "nome": "data",
+      "tipo": "DATA",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "hora",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "responsavel",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "motivo",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "criado_em",
+      "tipo": "DATA_HORA",
+      "modificadores": []
+    }
+  ],
+  "criada_em": "2026-06-29T20:25:15.016523"
+}
