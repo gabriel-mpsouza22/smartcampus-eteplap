@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block titulo %}Histórico de Pontualidade{% endblock %}
+{% block topbar_titulo %}<svg class='icon'><use href='#i-user'></use></svg> Histórico de Pontualidade{% endblock %}
+
+{% block topbar_acoes %}
+<a href="/pontualidade/" class="btn btn-secundario btn-sm"><svg class='icon'><use href='#i-arrow-left'></use></svg> Voltar à portaria</a>
+{% endblock %}
+
+{% block estilos %}
+<style>
+  .pa-cabecalho { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+  .pa-avatar {
+    width: 56px; height: 56px; border-radius: 50%; background: var(--bg-fundo2);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-family: var(--fonte-display); font-size: 1.3rem; color: var(--texto-secundario);
+  }
+  .pa-nome { font-family: var(--fonte-display); font-weight: 800; font-size: 1.3rem; }
+  .pa-sub { font-size: .84rem; color: var(--texto-mudo); }
+
+  .pa-filtro-linha { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+
+  table.pa-tabela { width: 100%; border-collapse: collapse; font-size: .86rem; }
+  table.pa-tabela th { text-align: left; padding: 10px 12px; color: var(--texto-mudo); font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1.5px solid var(--borda-forte); }
+  table.pa-tabela td { padding: 10px 12px; border-bottom: 1px solid var(--borda); }
+  .pa-status-badge { display: inline-flex; padding: 3px 10px; border-radius: 999px; font-size: .74rem; font-weight: 700; }
+  .pa-status-badge.normal { background: var(--verde-claro); color: var(--verde); }
+  .pa-status-badge.atraso, .pa-status-badge.atraso_leve { background: var(--amarelo-claro); color: var(--amarelo); }
+  .pa-status-badge.atraso_grave { background: var(--vermelho-claro); color: var(--vermelho); }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+
+<div class="pa-cabecalho" id="pa-cabecalho">
+  <div class="pa-avatar" id="pa-avatar">—</div>
+  <div>
+    <div class="pa-nome" id="pa-nome">Carregando…</div>
+    <div class="pa-sub" id="pa-sub"></div>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card"><div class="icone-caixa"><svg class='icon'><use href='#i-clock'></use></svg></div>
+    <div><div class="stat-numero" id="pa-total">—</div><div class="stat-label">Total de atrasos</div></div></div>
+  <div class="stat-card"><div class="icone-caixa"><svg class='icon'><use href='#i-calendar'></use></svg></div>
+    <div><div class="stat-numero" id="pa-ultimo" style="font-size:1.05rem;">—</div><div class="stat-label">Último atraso</div></div></div>
+  <div class="stat-card"><div class="icone-caixa"><svg class='icon'><use href='#i-target'></use></svg></div>
+    <div><div class="stat-numero" id="pa-media" style="font-size:1.05rem;">—</div><div class="stat-label">Média de horário</div></div></div>
+  <div class="stat-card"><div class="icone-caixa"><svg class='icon'><use href='#i-bar-chart'></use></svg></div>
+    <div><div class="stat-numero" id="pa-faixa" style="font-size:.95rem;">—</div><div class="stat-label">Horário mais frequente</div></div></div>
+</div>
+
+<div class="painel-secao">
+  <div class="painel-secao-titulo"><svg class='icon'><use href='#i-trending-up'></use></svg> Evolução dos atrasos</div>
+  <div class="painel-secao-sub">Quantidade de atrasos por mês, últimos 6 meses com registro</div>
+  <div class="grafico-linha-wrap" id="pa-grafico"></div>
+</div>
+
+<div class="painel-secao">
+  <div class="pa-filtro-linha">
+    <div class="painel-secao-titulo" style="margin:0;"><svg class='icon'><use href='#i-clipboard'></use></svg> Histórico de atrasos</div>
+    <label style="margin-left:auto;font-size:.8rem;color:var(--texto-secundario);display:flex;align-items:center;gap:6px;">
+      <input type="checkbox" id="pa-mostrar-todos" onchange="carregarHistorico()"> Mostrar entradas normais também
+    </label>
+  </div>
+  <div style="overflow-x:auto;">
+    <table class="pa-tabela">
+      <thead><tr><th>Data</th><th>Horário</th><th>Status</th><th>Registrado por</th></tr></thead>
+      <tbody id="pa-corpo-tabela"><tr><td colspan="4" style="text-align:center;color:var(--texto-mudo);padding:20px;">Carregando…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ALUNO_ID = {{ aluno_id }};
+
+document.addEventListener("DOMContentLoaded", carregarHistorico);
+
+function iniciais(nome) {
+  const partes = nome.trim().split(/\s+/);
+  return ((partes[0]?.[0] || "") + (partes[partes.length - 1]?.[0] || "")).toUpperCase();
+}
+
+function formatarDataBR(iso) {
+  const [a, m, d] = iso.split("-");
+  return `${d}/${m}/${a}`;
+}
+
+async function carregarHistorico() {
+  const todos = document.getElementById("pa-mostrar-todos").checked ? "1" : "0";
+  const r = await api("get", `/pontualidade/api/aluno/${ALUNO_ID}/historico?todos=${todos}`);
+  if (!r.ok) {
+    document.getElementById("pa-nome").textContent = r.dados?.erro || "Erro ao carregar.";
+    return;
+  }
+
+  const a = r.dados.aluno;
+  document.getElementById("pa-avatar").textContent = iniciais(a.nome);
+  document.getElementById("pa-nome").textContent = a.nome;
+  document.getElementById("pa-sub").textContent = `${a.turma} · ${a.serie}${a.matricula ? " · Matrícula " + a.matricula : ""}`;
+
+  document.getElementById("pa-total").textContent = r.dados.total_atrasos;
+  document.getElementById("pa-ultimo").textContent = r.dados.ultimo_atraso ? formatarDataBR(r.dados.ultimo_atraso) : "—";
+  document.getElementById("pa-media").textContent = r.dados.media_horario || "—";
+  document.getElementById("pa-faixa").textContent = r.dados.faixa_mais_frequente || "—";
+
+  const corpo = document.getElementById("pa-corpo-tabela");
+  if (r.dados.eventos.length === 0) {
+    corpo.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--texto-mudo);padding:20px;">
+      <svg class='icon'><use href='#i-check-circle'></use></svg> Nenhum atraso registrado.</td></tr>`;
+  } else {
+    corpo.innerHTML = r.dados.eventos.map(e => `
+      <tr>
+        <td>${formatarDataBR(e.data)}</td>
+        <td style="font-family:var(--fonte-mono);">${e.horario}</td>
+        <td><span class="pa-status-badge ${e.status}">${e.status_label}</span></td>
+        <td style="color:var(--texto-mudo);">${e.operador || "—"}</td>
+      </tr>`).join("");
+  }
+
+  montarGraficoMensal(r.dados.eventos);
+}
+
+function montarGraficoMensal(eventos) {
+  const porMes = {};
+  eventos.filter(e => e.status !== "normal").forEach(e => {
+    const chave = e.data.slice(0, 7); // YYYY-MM
+    porMes[chave] = (porMes[chave] || 0) + 1;
+  });
+  const chaves = Object.keys(porMes).sort().slice(-6);
+  const nomesMes = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+  const labels = chaves.map(c => nomesMes[parseInt(c.slice(5,7),10) - 1]);
+  const valores = chaves.map(c => porMes[c]);
+
+  if (chaves.length === 0) {
+    document.getElementById("pa-grafico").innerHTML = `<div class="estado-vazio">Sem atrasos suficientes para mostrar tendência.</div>`;
+    return;
+  }
+  desenharLinha("pa-grafico", labels, [{ nome: "Atrasos", cor: "var(--grafico-1)", valores }]);
+}
+</script>
+{% endblock %}
