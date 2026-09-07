@@ -1,0 +1,153 @@
+/* ──────────────────────────────────────────────────────────────
+   Notificações — badge por módulo (sidebar) + sino agregador (topbar)
+   ────────────────────────────────────────────────────────────── */
+
+/* Badge dentro de cada item do menu lateral: "3 chamados pendentes" */
+.badge-notif-modulo {
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--vermelho-solido, #B03A2E);
+  color: #FFFFFF;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* Sino no topbar */
+.notif-wrap { position: relative; }
+
+.notif-sino {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--raio);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--texto-secundario);
+  cursor: pointer;
+  transition: background var(--transicao), color var(--transicao);
+}
+.notif-sino:hover { background: var(--sidebar-hover); color: var(--texto); }
+.notif-sino .icon { width: 18px; height: 18px; }
+
+.badge-notif-sino {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--vermelho-solido, #B03A2E);
+  color: #FFFFFF;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+  border: 2px solid var(--card);
+}
+
+.notif-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  background: var(--card);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-lg);
+  box-shadow: var(--sombra-lg);
+  z-index: 200;
+  overflow: hidden;
+}
+.notif-dropdown.aberto { display: block; }
+
+.notif-dropdown-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--borda);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+.notif-dropdown-cabecalho button {
+  background: none;
+  border: none;
+  color: var(--azul);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+.notif-dropdown-cabecalho button:hover { text-decoration: underline; }
+
+.notif-dropdown-lista {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.notif-vazio {
+  padding: 28px 14px;
+  text-align: center;
+  color: var(--texto-mudo);
+  font-size: 0.82rem;
+}
+
+.notif-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 11px 14px;
+  border: none;
+  border-bottom: 1px solid var(--borda);
+  background: none;
+  cursor: pointer;
+  transition: background var(--transicao);
+}
+.notif-item:last-child { border-bottom: none; }
+.notif-item:hover { background: var(--sidebar-hover); }
+
+.notif-item-topo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+.notif-item-modulo {
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--azul);
+}
+.notif-item-tempo {
+  margin-left: auto;
+  font-size: 0.68rem;
+  color: var(--texto-mudo);
+  flex-shrink: 0;
+}
+.notif-item-titulo {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--texto);
+  margin-bottom: 2px;
+}
+.notif-item-mensagem {
+  font-size: 0.76rem;
+  color: var(--texto-secundario);
+  line-height: 1.35;
+}
+
+@media (max-width: 640px) {
+  .notif-dropdown { position: fixed; top: 60px; right: 12px; left: 12px; width: auto; }
+}
