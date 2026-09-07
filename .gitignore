@@ -1,0 +1,46 @@
+# ── Python ──────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+venv/
+.venv/
+
+# ── Segredos e dados por instalação (nunca versionar) ──────
+# Regenerados automaticamente pelo próprio sistema/launcher a cada
+# instalação — versionar um destes faria toda instalação nova herdar
+# a chave/conta de outra instalação, ou vazaria dados reais de uma
+# escola específica.
+core/.secret_key
+sceds/data/usuarios.sceds
+*.smc
+
+# A pasta inteira de licenciamento (contém a chave PRIVADA Ed25519)
+# NUNCA deve ir para o repositório, nem por engano. Ver
+# licenciamento/AVISO_ROTACAO_CHAVE.txt no seu histórico — essa chave
+# já vazou uma vez exatamente assim.
+licenciamento/
+
+# Artefato de bug já corrigido (path do Windows criado literalmente
+# como pasta em vez de resolvido) — se reaparecer, é sinal de
+# regressão, não algo para versionar.
+C:\SmartCampus/
+
+# ── Logs e dados de runtime ─────────────────────────────
+logs/*.log
+logs/*.jsonl
+!logs/.gitkeep
+backups/*
+!backups/.gitkeep
+
+# ── Build / empacotamento ───────────────────────────────
+dist_exe/
+build/
+*.spec
+
+# ── SO / editor ─────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
