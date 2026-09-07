@@ -1,0 +1,374 @@
+{% extends "base.html" %}
+{% block titulo %}Prevenção de Evasão{% endblock %}
+{% block topbar_titulo %}Prevenção de Evasão{% endblock %}
+{% block topbar_acoes %}
+<a href="{{ url_for('evasao.fichas') }}" class="btn btn-secundario btn-sm">Fichas dos alunos por turma</a>
+{% endblock %}
+
+{% block estilos %}
+<style>
+
+.filtros-linha { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; align-items:center; }
+.busca-feed { position:relative; flex:1; min-width:180px; }
+.busca-feed input {
+  width:100%; padding:9px 14px 9px 34px; border:1.5px solid var(--borda-forte); border-radius:var(--raio);
+  font-size:.86rem; outline:none;
+}
+.busca-feed input:focus { border-color: var(--azul-medio); }
+.busca-feed-icone { position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--texto-mudo); font-size:.85rem; }
+
+.filtro-chip {
+  padding:6px 13px; border-radius:999px; border:1.5px solid var(--borda-forte); background:var(--card);
+  font-size:.78rem; font-weight:700; cursor:pointer; color:var(--texto-secundario); transition:all .15s;
+  white-space:nowrap;
+}
+.filtro-chip.ativo { border-color: var(--preto); background: var(--bg-fundo2); color: var(--texto); }
+
+.filtro-select {
+  padding:7px 32px 7px 12px; border-radius:var(--raio); border:1.5px solid var(--borda-forte); background-color:var(--card);
+  font-size:.82rem; color:var(--texto-secundario); font-weight:600;
+}
+
+.score-pill {
+  display:inline-flex; align-items:center; justify-content:center; min-width:44px;
+  padding:4px 10px; border-radius:999px; font-weight:800; font-family:var(--fonte-display); font-size:.85rem;
+}
+
+.linha-clicavel { cursor:pointer; }
+.motivos-resumo { font-size:.74rem; color:var(--texto-mudo); }
+
+.estado-vazio-icone { font-size:2rem; margin-bottom:10px; }
+
+/* modal */
+.overlay-ficha {
+  display:none; position:fixed; inset:0; background:rgba(8,9,11,.5); z-index:300;
+  align-items:center; justify-content:center; padding:16px;
+  backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
+}
+.overlay-ficha.aberto { display:flex; }
+.modal-ficha {
+  background: rgba(32, 33, 36, 0.72);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius:16px; width:100%; max-width:620px; max-height:88vh;
+  overflow-y:auto; box-shadow: var(--sombra-lg), inset 0 1px 0 rgba(255, 255, 255, 0.05); padding:24px;
+}
+.ficha-topo { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; }
+.ficha-nome { font-family:var(--fonte-display); font-weight:800; font-size:1.2rem; }
+.ficha-meta { font-size:.82rem; color:var(--texto-secundario); margin-bottom:14px; }
+.ficha-fechar { background:var(--fundo);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:.9rem; flex-shrink:0; }
+
+.score-destaque {
+  display:flex; align-items:center; gap:16px; background:var(--fundo); border-radius:var(--raio-lg);
+  padding:16px; margin-bottom:16px;
+}
+.score-numero-grande { font-family:var(--fonte-display); font-weight:800; font-size:2.2rem; line-height:1; }
+.score-nivel-label { font-size:.8rem; font-weight:700; margin-top:2px; }
+
+.barra-componente { margin-bottom:12px; }
+.barra-componente-topo { display:flex; justify-content:space-between; font-size:.78rem; font-weight:700; color:var(--texto-secundario); margin-bottom:4px; }
+.barra-trilho { background:var(--borda); border-radius:999px; height:8px; overflow:hidden; }
+.barra-preenchimento { height:100%; border-radius:999px; transition: width .3s ease; }
+
+.lista-motivos { list-style:none; margin:10px 0 18px; padding:0; display:flex; flex-direction:column; gap:6px; }
+.lista-motivos li { font-size:.84rem; color:var(--texto); background:var(--fundo); padding:8px 12px; border-radius:var(--raio); border-left:3px solid var(--laranja); }
+
+.form-frequencia { display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; margin-top:6px; margin-bottom:18px; }
+.form-frequencia .campo { margin-bottom:0; min-width:120px; }
+
+.ficha-secao-titulo { font-size:.82rem; font-weight:700; color:var(--texto-secundario); text-transform:uppercase; letter-spacing:.04em; margin:18px 0 8px; }
+
+.mini-oc { border-left:4px solid var(--texto-mudo); border-radius:var(--raio); background:var(--fundo); padding:8px 12px; margin-bottom:6px; font-size:.82rem; }
+.mini-oc-topo { display:flex; justify-content:space-between; font-weight:600; }
+
+@media (max-width: 860px) {
+  .score-destaque { flex-direction:column; align-items:flex-start; }
+}
+</style>
+{% endblock %}
+
+{% block conteudo %}
+
+<div class="grade-stats mb-24">
+  <div class="stat-box">
+    <div class="stat-box-numero" id="stat-criticos" style="color:var(--vermelho)">—</div>
+    <div class="stat-box-label">Risco crítico</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-box-numero" id="stat-altos" style="color:var(--amarelo)">—</div>
+    <div class="stat-box-label">Risco alto</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-box-numero" id="stat-moderados">—</div>
+    <div class="stat-box-label">Risco moderado</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-box-numero" id="stat-avaliados">—</div>
+    <div class="stat-box-label">Alunos avaliados</div>
+  </div>
+</div>
+
+<p class="text-sm text-mudo mb-24" style="max-width:640px;">
+  O score combina <strong style="color:var(--texto-secundario)">frequência</strong>,
+  <strong style="color:var(--texto-secundario)">ocorrências disciplinares</strong> e
+  <strong style="color:var(--texto-secundario)">uso da biblioteca</strong> dos últimos meses.
+  Quando um dado ainda não foi registrado, o peso é redistribuído entre os demais — use como
+  ponto de partida para uma conversa, não como diagnóstico definitivo.
+</p>
+
+<div class="card">
+  <div class="filtros-linha">
+    <div class="busca-feed">
+      <span class="busca-feed-icone"><svg class='icon'><use href='#i-search'></use></svg></span>
+      <input type="text" id="busca-aluno" placeholder="Buscar por aluno…" oninput="debounceRanking()">
+    </div>
+    <select class="filtro-select" id="filtro-turma" onchange="carregarRanking()">
+      <option value="">Todas as turmas</option>
+      {% for t in turmas %}
+      <option value="{{ t.turma }}">{{ t.turma }} — {{ t.curso }}</option>
+      {% endfor %}
+    </select>
+    <button class="filtro-chip ativo" data-nivel="" onclick="filtrarNivel(this,'')">Todos</button>
+    <button class="filtro-chip" data-nivel="critico" onclick="filtrarNivel(this,'critico')">Crítico</button>
+    <button class="filtro-chip" data-nivel="alto" onclick="filtrarNivel(this,'alto')">Alto</button>
+    <button class="filtro-chip" data-nivel="moderado" onclick="filtrarNivel(this,'moderado')">Moderado</button>
+    <button class="filtro-chip" data-nivel="baixo" onclick="filtrarNivel(this,'baixo')">Baixo</button>
+  </div>
+
+  <div class="tabela-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Aluno</th>
+          <th>Turma</th>
+          <th>Score</th>
+          <th>Nível</th>
+          <th>Principais motivos</th>
+        </tr>
+      </thead>
+      <tbody id="corpo-ranking">
+        <tr><td colspan="5"><div class="estado-vazio"><div class="estado-vazio-icone"><svg class='icon'><use href='#i-clock'></use></svg></div>Carregando…</div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+<div class="overlay-ficha" id="overlay-ficha" onclick="fecharFichaFora(event)">
+  <div class="modal-ficha">
+    <div class="ficha-topo">
+      <div>
+        <div class="ficha-nome" id="ficha-nome"></div>
+        <div class="ficha-meta" id="ficha-meta"></div>
+      </div>
+      <button class="ficha-fechar" onclick="fecharFicha()"><svg class='icon'><use href='#i-close'></use></svg></button>
+    </div>
+
+    <div class="score-destaque">
+      <div>
+        <div class="score-numero-grande" id="ficha-score-numero">—</div>
+        <div class="score-nivel-label" id="ficha-score-nivel">—</div>
+      </div>
+      <div style="flex:1; font-size:.82rem; color:var(--texto-secundario);" id="ficha-score-explicacao"></div>
+    </div>
+
+    <div id="ficha-componentes"></div>
+
+    <ul class="lista-motivos" id="ficha-motivos"></ul>
+
+    <div class="ficha-secao-titulo">Atualizar frequência</div>
+    <div class="form-frequencia">
+      <div class="campo">
+        <label>Frequência atual (%)</label>
+        <input type="number" id="freq-percentual" min="0" max="100" step="0.1" placeholder="Ex: 82">
+      </div>
+      <div class="campo">
+        <label>Período de referência</label>
+        <input type="text" id="freq-periodo" placeholder="Ex: ago/2026">
+      </div>
+      <button class="btn btn-primario btn-sm" id="btn-salvar-freq" onclick="salvarFrequencia()">Salvar</button>
+    </div>
+
+    <div class="ficha-secao-titulo">Últimas ocorrências disciplinares</div>
+    <div id="ficha-ocorrencias"></div>
+
+    <div class="ficha-secao-titulo">Biblioteca — livros do aluno</div>
+    <div id="ficha-emprestimos"></div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const NOMES_NIVEL = { critico: "Crítico", alto: "Alto", moderado: "Moderado", baixo: "Baixo" };
+
+let timerRanking = null;
+let filtroNivelAtivo = "";
+let alunoAbertoId = null;
+
+document.addEventListener("DOMContentLoaded", () => {
+  carregarStats();
+  carregarRanking();
+});
+
+async function carregarStats() {
+  const r = await api("get", "/evasao/api/status");
+  if (!r.ok) return;
+  document.getElementById("stat-criticos").textContent  = r.dados.criticos;
+  document.getElementById("stat-altos").textContent     = r.dados.altos;
+  document.getElementById("stat-moderados").textContent = r.dados.moderados;
+  document.getElementById("stat-avaliados").textContent = `${r.dados.avaliados}/${r.dados.total_alunos}`;
+}
+
+function debounceRanking() {
+  clearTimeout(timerRanking);
+  timerRanking = setTimeout(carregarRanking, 300);
+}
+
+function filtrarNivel(btn, nivel) {
+  document.querySelectorAll(".filtro-chip").forEach(b => b.classList.remove("ativo"));
+  btn.classList.add("ativo");
+  filtroNivelAtivo = nivel;
+  carregarRanking();
+}
+
+async function carregarRanking() {
+  const busca = document.getElementById("busca-aluno").value.trim();
+  const turma = document.getElementById("filtro-turma").value;
+  const params = new URLSearchParams();
+  if (busca) params.set("busca", busca);
+  if (turma) params.set("turma", turma);
+  if (filtroNivelAtivo) params.set("nivel", filtroNivelAtivo);
+
+  const corpo = document.getElementById("corpo-ranking");
+  const r = await api("get", `/evasao/api/ranking?${params}`);
+
+  if (!r.ok) { corpo.innerHTML = `<tr><td colspan="5"><div class="estado-vazio">Erro ao carregar.</div></td></tr>`; return; }
+  if (r.dados.length === 0) {
+    corpo.innerHTML = `<tr><td colspan="5"><div class="estado-vazio"><div class="estado-vazio-icone"><svg class='icon'><use href='#i-inbox'></use></svg></div>Nenhum aluno encontrado.</div></td></tr>`;
+    return;
+  }
+
+  corpo.innerHTML = r.dados.map(linhaHtml).join("");
+}
+
+function linhaHtml(a) {
+  const motivos = a.motivos.slice(0, 2).join(" · ") || "—";
+  return `
+    <tr class="linha-clicavel" onclick="abrirFicha(${a.id})">
+      <td><strong>${a.nome}</strong></td>
+      <td>${a.turma} · ${a.curso}</td>
+      <td><span class="score-pill pill pill-${a.nivel.id}">${a.score.toFixed(0)}</span></td>
+      <td><span class="badge pill pill-${a.nivel.id}">${a.nivel.nome}</span></td>
+      <td class="motivos-resumo">${motivos}</td>
+    </tr>`;
+}
+
+async function abrirFicha(alunoId) {
+  const r = await api("get", `/evasao/api/alunos/${alunoId}/detalhe`);
+  if (!r.ok) { mostrarAlerta("Erro ao carregar ficha do aluno.", "erro"); return; }
+
+  alunoAbertoId = alunoId;
+  const a = r.dados;
+
+  document.getElementById("ficha-nome").textContent = a.aluno.nome;
+  document.getElementById("ficha-meta").textContent = `${a.aluno.serie} · ${a.aluno.turma} · ${a.aluno.curso}`;
+
+  document.getElementById("ficha-score-numero").textContent = a.score.toFixed(0);
+  document.getElementById("ficha-score-numero").className = `score-numero-grande pill-texto-${a.nivel.id}`;
+  document.getElementById("ficha-score-nivel").textContent = `Risco ${a.nivel.nome.toLowerCase()}`;
+  document.getElementById("ficha-score-nivel").className = `score-nivel-label pill-texto-${a.nivel.id}`;
+  document.getElementById("ficha-score-explicacao").textContent =
+    "Score de 0 a 100 combinando frequência, ocorrências e engajamento. Quanto maior, mais urgente a atenção da coordenação.";
+
+  const labels = { frequencia: "Frequência", disciplinar: "Disciplinar", engajamento: "Engajamento" };
+  document.getElementById("ficha-componentes").innerHTML = Object.entries(a.componentes).map(([chave, valor]) => {
+    const pct = valor === null ? 0 : valor;
+    const semDado = valor === null;
+    return `
+      <div class="barra-componente">
+        <div class="barra-componente-topo">
+          <span>${labels[chave]} ${semDado ? '(sem dado)' : ''}</span>
+          <span>${semDado ? '—' : pct.toFixed(0)}</span>
+        </div>
+        <div class="barra-trilho">
+          <div class="barra-preenchimento ${semDado ? '' : 'preenchimento-' + a.nivel.id}" style="width:${pct}%;"></div>
+        </div>
+      </div>`;
+  }).join("");
+
+  document.getElementById("ficha-motivos").innerHTML = a.motivos.length
+    ? a.motivos.map(m => `<li>${m}</li>`).join("")
+    : `<li class="borda-baixo">Nenhum sinal de risco identificado no momento.</li>`;
+
+  document.getElementById("freq-percentual").value = a.frequencia_atual ? a.frequencia_atual.percentual : "";
+  document.getElementById("freq-periodo").value = "";
+
+  const ocEl = document.getElementById("ficha-ocorrencias");
+  if (a.ocorrencias.length === 0) {
+    ocEl.innerHTML = `<div class="estado-vazio" style="padding:16px;">Nenhuma ocorrência registrada.</div>`;
+  } else {
+    ocEl.innerHTML = a.ocorrencias.map(o => `
+        <div class="mini-oc borda-tipo-${o.tipo_info.cor}">
+          <div class="mini-oc-topo">
+            <span class="pill-texto-tipo-${o.tipo_info.cor}">${o.tipo_info.nome}</span>
+            <span class="text-mudo text-xs">${formatarDataHora(o.data_hora)}</span>
+          </div>
+          <div>${o.descricao}</div>
+        </div>`
+    ).join("");
+  }
+
+  const empEl = document.getElementById("ficha-emprestimos");
+  if (!a.emprestimos || a.emprestimos.length === 0) {
+    empEl.innerHTML = `<div class="estado-vazio" style="padding:16px;">Nenhum empréstimo registrado na biblioteca.</div>`;
+  } else {
+    empEl.innerHTML = a.emprestimos.map(e => {
+      const atrasado = !e.devolvido && e.data_prevista_devolucao && new Date(e.data_prevista_devolucao) < new Date();
+      const classe = atrasado ? "borda-critico" : (e.devolvido ? "borda-baixo" : "borda-tipo-azul");
+      return `
+        <div class="mini-oc ${classe}">
+          <div class="mini-oc-topo">
+            <span><svg class='icon'><use href='#i-book'></use></svg> ${e.livro_nome}</span>
+            <span class="text-mudo text-xs">${e.devolvido ? 'Devolvido' : (atrasado ? 'Em atraso' : 'Emprestado')}</span>
+          </div>
+          <div class="text-xs text-mudo">Emprestado em ${formatarData(e.data_emprestimo)} · previsão ${formatarData(e.data_prevista_devolucao)}</div>
+        </div>`;
+    }).join("");
+  }
+
+  document.getElementById("overlay-ficha").classList.add("aberto");
+}
+
+async function salvarFrequencia() {
+  if (!alunoAbertoId) return;
+  const percentual = document.getElementById("freq-percentual").value;
+  const periodo = document.getElementById("freq-periodo").value.trim();
+
+  if (percentual === "" || isNaN(percentual)) { mostrarAlerta("Informe a frequência em %.", "aviso"); return; }
+
+  mostrarSpinner("btn-salvar-freq");
+  const r = await api("post", `/evasao/api/alunos/${alunoAbertoId}/frequencia`, {
+    percentual: parseFloat(percentual), periodo_referencia: periodo
+  });
+  ocultarSpinner("btn-salvar-freq");
+
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao salvar frequência.", "erro"); return; }
+
+  mostrarAlerta("Frequência atualizada!", "sucesso");
+  abrirFicha(alunoAbertoId);
+  carregarRanking();
+  carregarStats();
+}
+
+function fecharFicha() { document.getElementById("overlay-ficha").classList.remove("aberto"); alunoAbertoId = null; }
+function fecharFichaFora(e) { if (e.target.id === "overlay-ficha") fecharFicha(); }
+
+function formatarDataHora(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("pt-BR", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
+}
+</script>
+{% endblock %}
