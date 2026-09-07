@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block titulo %}Painel de Pontualidade{% endblock %}
+{% block topbar_titulo %}<svg class='icon'><use href='#i-bar-chart'></use></svg> Controle de Pontualidade{% endblock %}
+
+{% block topbar_acoes %}
+<a href="/pontualidade/configuracao" class="btn btn-secundario btn-sm"><svg class='icon'><use href='#i-wrench'></use></svg> Regras</a>
+<a href="/pontualidade/" class="btn btn-secundario btn-sm"><svg class='icon'><use href='#i-door'></use></svg> Portaria</a>
+{% endblock %}
+
+{% block estilos %}
+<style>
+  .pd-mes-seletor { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .pd-mes-btn {
+    width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid var(--borda-forte);
+    background: var(--card); display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .pd-mes-titulo { font-family: var(--fonte-display); font-weight: 800; font-size: 1.05rem; min-width: 160px; text-align: center; }
+
+  table.pd-tabela { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  table.pd-tabela th { text-align: left; padding: 9px 10px; color: var(--texto-mudo); font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1.5px solid var(--borda-forte); }
+  table.pd-tabela td { padding: 9px 10px; border-bottom: 1px solid var(--borda); }
+  table.pd-tabela tr.clicavel { cursor: pointer; }
+  table.pd-tabela tr.clicavel:hover { background: var(--bg-fundo2); }
+  .pd-reinc-badge { background: var(--vermelho-claro); color: var(--vermelho); padding: 2px 9px; border-radius: 999px; font-weight: 700; font-size: .76rem; }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+
+<div class="pd-mes-seletor">
+  <button class="pd-mes-btn" onclick="mudarMes(-1)"><svg class='icon' style="width:14px;height:14px;"><use href='#i-arrow-left'></use></svg></button>
+  <div class="pd-mes-titulo" id="pd-mes-titulo">—</div>
+  <button class="pd-mes-btn" onclick="mudarMes(1)"><svg class='icon' style="width:14px;height:14px;"><use href='#i-arrow-right'></use></svg></button>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card"><div class="icone-caixa"><svg class='icon'><use href='#i-clock'></use></svg></div>
+    <div><div class="stat-numero" id="k-total">—</div><div class="stat-label">Total de atrasos</div></div></div>
+  <div class="stat-card"><div class="icone-caixa"><svg class='icon'><use href='#i-users'></use></svg></div>
+    <div><div class="stat-numero" id="k-alunos">—</div><div class="stat-label">Alunos atrasados</div></div></div>
+  <div class="stat-card"><div class="icone-caixa"><svg class='icon'><use href='#i-warning'></use></svg></div>
+    <div><div class="stat-numero" id="k-reinc">—</div><div class="stat-label">Alunos reincidentes</div></div></div>
+  <div class="stat-card"><div class="icone-caixa"><svg class='icon'><use href='#i-school'></use></svg></div>
+    <div><div class="stat-numero" id="k-turma" style="font-size:1.05rem;">—</div><div class="stat-label">Turma com mais atrasos</div></div></div>
+  <div class="stat-card"><div class="icone-caixa"><svg class='icon'><use href='#i-calendar'></use></svg></div>
+    <div><div class="stat-numero" id="k-dia" style="font-size:1.05rem;">—</div><div class="stat-label">Dia com mais atrasos</div></div></div>
+  <div class="stat-card"><div class="icone-caixa"><svg class='icon'><use href='#i-target'></use></svg></div>
+    <div><div class="stat-numero" id="k-faixa" style="font-size:1.05rem;">—</div><div class="stat-label">Horário mais concentrado</div></div></div>
+</div>
+
+<div class="painel-secao full-width">
+  <div class="painel-secao-titulo"><svg class='icon'><use href='#i-trending-up'></use></svg> Atrasos ao longo do mês</div>
+  <div class="painel-secao-sub">Quantidade de atrasos por dia</div>
+  <div class="grafico-linha-wrap" id="g-por-dia"></div>
+</div>
+
+<div class="secoes-grid">
+  <div class="painel-secao">
+    <div class="painel-secao-titulo"><svg class='icon'><use href='#i-clock'></use></svg> Concentração por horário</div>
+    <div class="painel-secao-sub">Faixas de 15 minutos com mais atrasos</div>
+    <div id="rank-horario"></div>
+  </div>
+
+  <div class="painel-secao">
+    <div class="painel-secao-titulo"><svg class='icon'><use href='#i-school'></use></svg> Turmas com mais atrasos</div>
+    <div class="painel-secao-sub">Ranking do mês</div>
+    <div id="rank-turmas"></div>
+  </div>
+</div>
+
+<div class="painel-secao full-width">
+  <div class="painel-secao-titulo"><svg class='icon'><use href='#i-warning'></use></svg> Alunos reincidentes</div>
+  <div class="painel-secao-sub" id="pd-reinc-sub">Alunos que atingiram a regra de reincidência configurada</div>
+  <div style="overflow-x:auto;">
+    <table class="pd-tabela">
+      <thead><tr><th>Aluno</th><th>Turma</th><th>Atrasos no mês</th><th>Semanas reincidentes</th><th>Último atraso</th></tr></thead>
+      <tbody id="pd-corpo-reinc"><tr><td colspan="5" style="text-align:center;color:var(--texto-mudo);padding:20px;">Carregando…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let anoAtual = {{ ano }};
+let mesAtual = {{ mes }};
+const NOMES_MES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+
+document.addEventListener("DOMContentLoaded", carregarDashboard);
+
+function mudarMes(delta) {
+  mesAtual += delta;
+  if (mesAtual < 1) { mesAtual = 12; anoAtual--; }
+  if (mesAtual > 12) { mesAtual = 1; anoAtual++; }
+  carregarDashboard();
+}
+
+function formatarDataBR(iso) {
+  const [a, m, d] = iso.split("-");
+  return `${d}/${m}/${a}`;
+}
+
+async function carregarDashboard() {
+  document.getElementById("pd-mes-titulo").textContent = `${NOMES_MES[mesAtual - 1]} de ${anoAtual}`;
+
+  const r = await api("get", `/pontualidade/api/dashboard?ano=${anoAtual}&mes=${mesAtual}`);
+  if (!r.ok) return;
+  const d = r.dados;
+
+  document.getElementById("k-total").textContent = d.kpis.total_atrasos;
+  document.getElementById("k-alunos").textContent = d.kpis.alunos_atrasados;
+  document.getElementById("k-reinc").textContent = d.kpis.alunos_reincidentes;
+  document.getElementById("k-turma").textContent = d.kpis.turma_com_mais_atrasos;
+  document.getElementById("k-dia").textContent = d.kpis.dia_semana_com_mais_atrasos;
+  document.getElementById("k-faixa").textContent = d.kpis.faixa_horario_com_mais_atrasos;
+
+  if (d.atrasos_por_dia.valores.some(v => v > 0)) {
+    desenharLinha("g-por-dia", d.atrasos_por_dia.labels, [
+      { nome: "Atrasos", cor: "var(--grafico-1)", valores: d.atrasos_por_dia.valores },
+    ]);
+  } else {
+    document.getElementById("g-por-dia").innerHTML = `<div class="estado-vazio">Nenhum atraso registrado neste mês.</div>`;
+  }
+
+  renderRanking("rank-horario", d.atrasos_por_horario, "nome", "total");
+  renderRanking("rank-turmas", d.top_turmas, "nome", "total");
+
+  const corpo = document.getElementById("pd-corpo-reinc");
+  if (d.reincidentes.length === 0) {
+    corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--texto-mudo);padding:20px;">
+      <svg class='icon'><use href='#i-check-circle'></use></svg> Nenhum aluno reincidente neste mês.</td></tr>`;
+  } else {
+    corpo.innerHTML = d.reincidentes.map(a => `
+      <tr class="clicavel" onclick="window.location='/pontualidade/aluno/${a.aluno_id}'">
+        <td style="font-weight:600;">${a.nome}</td>
+        <td>${a.turma || "—"}</td>
+        <td><span class="pd-reinc-badge">${a.atrasos_no_mes}</span></td>
+        <td>${a.semanas_reincidentes ?? "—"}</td>
+        <td>${formatarDataBR(a.ultimo_atraso)}</td>
+      </tr>`).join("");
+  }
+}
+</script>
+{% endblock %}
