@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recuperação de acesso — Smart Campus</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/premium-effects.css') }}">
+</head>
+<body>
+
+{% include "_icones.html" %}
+
+<div class="login-pagina">
+  <div class="login-caixa" style="max-width:440px;">
+
+    <div class="login-cabecalho">
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo" class="login-emblema-imagem">
+      <h1 class="login-titulo" style="font-size:1.15rem;">Recuperação de acesso do administrador</h1>
+      <p class="login-subtitulo">
+        Use apenas se você perdeu o acesso a todos os usuários administradores.
+        Só funciona rodando diretamente no computador onde o Smart Campus está instalado.
+      </p>
+    </div>
+
+    <div class="card" style="background:var(--bg-fundo2); margin-bottom:20px;">
+      <div class="card-titulo" style="font-size:0.85rem; margin-bottom:8px;">Como funciona</div>
+      <ol style="padding-left:1.1rem; font-size:0.83rem; color:var(--texto-secundario); line-height:1.6; margin:0;">
+        <li>Clique em "Gerar token". Por segurança, ele <strong>nunca aparece nesta tela</strong> —
+            só no arquivo <code>logs/servidor.log</code>, pra garantir que só quem tem acesso
+            real ao servidor consiga recuperar o acesso.</li>
+        <li>Abra esse arquivo de log e copie o token (válido por 15 minutos).</li>
+        <li>Cole o token abaixo, junto com a nova senha.</li>
+      </ol>
+    </div>
+
+    <button id="btn-gerar" class="btn btn-secundario" type="button" style="width:100%; margin-bottom:8px;">
+      <svg class="icon"><use href="#i-key"></use></svg>
+      Gerar token
+    </button>
+    <div id="alerta-token" style="display:none;"></div>
+    <div id="contagem-token" class="text-xs text-mudo mono" style="display:none; text-align:center; margin-top:6px;"></div>
+
+    <form id="form-confirmar" style="margin-top:20px;" autocomplete="off">
+      <div class="campo">
+        <label for="token">Token recebido no log</label>
+        <input type="text" id="token" name="token" required autocomplete="off">
+      </div>
+      <div class="campo">
+        <label for="nova_senha">Nova senha do administrador</label>
+        <input type="password" id="nova_senha" name="nova_senha" minlength="6" required
+               autocomplete="new-password" aria-describedby="dica-nova-senha">
+        <span class="text-xs text-mudo" id="dica-nova-senha">Mínimo de 6 caracteres.</span>
+      </div>
+      <button type="submit" class="btn btn-primario login-btn" id="btn-confirmar" style="width:100%;">
+        Redefinir senha
+      </button>
+    </form>
+    <div id="alerta-confirmar" style="margin-top:12px;"></div>
+
+    <p class="login-rodape">
+      <a href="/login">Voltar para o login</a>
+    </p>
+
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script>
+let contagemInterval = null;
+
+function pararContagem() {
+  if (contagemInterval) { clearInterval(contagemInterval); contagemInterval = null; }
+  document.getElementById("contagem-token").style.display = "none";
+}
+
+function iniciarContagem(segundosTotais) {
+  pararContagem();
+  const alvo = document.getElementById("contagem-token");
+  alvo.style.display = "block";
+  let restante = segundosTotais;
+  const atualizar = () => {
+    if (restante <= 0) {
+      alvo.textContent = "Token expirado — gere um novo.";
+      pararContagem();
+      return;
+    }
+    const m = Math.floor(restante / 60);
+    const s = String(restante % 60).padStart(2, "0");
+    alvo.textContent = `Token válido por mais ${m}:${s}`;
+    restante -= 1;
+  };
+  atualizar();
+  contagemInterval = setInterval(atualizar, 1000);
+}
+
+function exibirAlerta(idAlvo, texto, tipo) {
+  const alvo = document.getElementById(idAlvo);
+  const icone = tipo === "sucesso" ? "i-check-circle" : "i-close-circle";
+  alvo.innerHTML = `
+    <div class="alerta alerta-${tipo}" role="alert">
+      <svg class="icon"><use href="#${icone}"></use></svg>
+      <span>${texto}</span>
+    </div>`;
+  alvo.style.display = "block";
+}
+
+document.getElementById("btn-gerar").addEventListener("click", async () => {
+  mostrarSpinner("btn-gerar");
+  try {
+    const r = await fetch("/recuperar-acesso/gerar-token", { method: "POST" });
+    const d = await r.json();
+    ocultarSpinner("btn-gerar");
+    if (!r.ok || !d.ok) {
+      exibirAlerta("alerta-token", d.erro || "Não foi possível gerar o token.", "erro");
+      return;
+    }
+    exibirAlerta("alerta-token", d.mensagem, "sucesso");
+    iniciarContagem(15 * 60);
+  } catch (e) {
+    ocultarSpinner("btn-gerar");
+    exibirAlerta("alerta-token", "Falha de conexão com o servidor. Tente novamente.", "erro");
+  }
+});
+
+document.getElementById("form-confirmar").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const token = document.getElementById("token").value.trim();
+  const nova_senha = document.getElementById("nova_senha").value;
+
+  mostrarSpinner("btn-confirmar");
+  try {
+    const r = await fetch("/recuperar-acesso/confirmar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, nova_senha }),
+    });
+    const d = await r.json();
+    ocultarSpinner("btn-confirmar");
+    if (!r.ok || !d.ok) {
+      exibirAlerta("alerta-confirmar", d.erro || "Não foi possível redefinir a senha.", "erro");
+      return;
+    }
+    exibirAlerta("alerta-confirmar", `${d.mensagem} Redirecionando para o login…`, "sucesso");
+    pararContagem();
+    setTimeout(() => { window.location.href = "/login"; }, 2000);
+  } catch (e) {
+    ocultarSpinner("btn-confirmar");
+    exibirAlerta("alerta-confirmar", "Falha de conexão com o servidor. Tente novamente.", "erro");
+  }
+});
+</script>
+</body>
+</html>
