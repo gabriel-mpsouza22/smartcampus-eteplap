@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block titulo %}Configurações{% endblock %}
+{% block topbar_titulo %}Configurações do Servidor{% endblock %}
+
+{% block estilos %}
+<style>
+.config-layout { display:grid; grid-template-columns:360px 1fr; gap:20px; align-items:start; }
+@media (max-width:860px) { .config-layout { grid-template-columns:1fr; } }
+
+.aviso-reinicio { display:none; margin-top:12px; margin-bottom:0; }
+.aviso-reinicio.visivel { display:flex; }
+
+
+.log-viewer {
+  background: #101113; color:#CBD5E1; border: 1px solid var(--borda); border-radius:var(--raio-lg); padding:16px;
+  font-family:var(--fonte-mono); font-size:.76rem; line-height:1.6; height:480px; overflow-y:auto;
+  white-space:pre-wrap; word-break:break-all;
+}
+.log-linha-erro  { color:#FCA5A5; }
+.log-linha-aviso { color:#FCD34D; }
+.log-toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:8px; flex-wrap:wrap; }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+<div class="config-layout">
+
+  <div class="card">
+    <div class="card-titulo">Servidor</div>
+    <p class="text-sm text-secundario mb-16" style="margin-top:-10px;">Alterações exigem reiniciar o app.py para ter efeito.</p>
+
+    <div class="campo">
+      <label for="cfg-porta">Porta do servidor</label>
+      <input type="number" id="cfg-porta" min="1" max="65535">
+    </div>
+    <div class="campo">
+      <label for="cfg-host">Host (endereço de escuta)</label>
+      <input type="text" id="cfg-host" placeholder="0.0.0.0">
+    </div>
+
+    <button class="btn btn-primario w-full" id="btn-salvar-config" onclick="salvarConfig()">
+      Salvar configurações
+    </button>
+
+    <div class="alerta alerta-aviso aviso-reinicio" id="aviso-reinicio" role="status">
+      <svg class='icon'><use href='#i-warning'></use></svg>
+      <span>Configuração salva. Reinicie o servidor para aplicar.</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="log-toolbar">
+      <span class="secao-titulo" style="font-size:1rem;margin:0;">Log do servidor</span>
+      <div class="flex gap-8">
+        <select id="log-qtd" onchange="carregarLogs()" style="width:auto;">
+          <option value="50">Últimas 50 linhas</option>
+          <option value="150" selected>Últimas 150 linhas</option>
+          <option value="500">Últimas 500 linhas</option>
+        </select>
+        <button class="btn btn-secundario btn-sm" onclick="carregarLogs()">
+          <svg class='icon'><use href='#i-refresh'></use></svg> Atualizar
+        </button>
+      </div>
+    </div>
+    <div class="log-viewer" id="log-viewer">
+      <div class="estado-carregando" style="color:#94A3B8;"><span class="spinner"></span> Carregando…</div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  carregarConfig();
+  carregarLogs();
+});
+
+async function carregarConfig() {
+  const r = await api("get", "/admin/api/configuracoes");
+  if (!r.ok) return;
+  document.getElementById("cfg-porta").value = r.dados.porta_api;
+  document.getElementById("cfg-host").value  = r.dados.host_api;
+}
+
+async function salvarConfig() {
+  const porta = document.getElementById("cfg-porta").value;
+  const host  = document.getElementById("cfg-host").value.trim();
+
+  mostrarSpinner("btn-salvar-config");
+  const r = await api("put", "/admin/api/configuracoes", { porta_api: porta, host_api: host });
+  ocultarSpinner("btn-salvar-config");
+
+  if (r.ok) {
+    document.getElementById("aviso-reinicio").classList.add("visivel");
+    mostrarAlerta("Configurações salvas!", "sucesso");
+  } else {
+    mostrarAlerta(r.dados?.erro || "Erro ao salvar.", "erro");
+  }
+}
+
+async function carregarLogs() {
+  const qtd = document.getElementById("log-qtd").value;
+  const r = await api("get", `/admin/api/logs?linhas=${qtd}`);
+  const viewer = document.getElementById("log-viewer");
+
+  if (!r.ok || !r.dados.linhas) { viewer.textContent = "Não foi possível carregar o log."; return; }
+  if (r.dados.linhas.length === 0) { viewer.textContent = "(log vazio)"; return; }
+
+  viewer.innerHTML = r.dados.linhas.map(l => {
+    const escapado = l.replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    let cls = "";
+    if (l.includes("[ERROR]")) cls = "log-linha-erro";
+    else if (l.includes("[WARNING]")) cls = "log-linha-aviso";
+    return `<div class="${cls}">${escapado}</div>`;
+  }).join("");
+
+  viewer.scrollTop = viewer.scrollHeight;
+}
+</script>
+{% endblock %}
