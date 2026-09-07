@@ -1,0 +1,47 @@
+{
+  "tabela": "ocorrencias",
+  "colunas": [
+    {
+      "nome": "numero",
+      "tipo": "INTEIRO",
+      "modificadores": [
+        "CHAVE_PRIMARIA",
+        "AUTO"
+      ]
+    },
+    {
+      "nome": "aluno_id",
+      "tipo": "INTEIRO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "tipo",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "envolvido_2",
+      "tipo": "TEXTO",
+      "modificadores": []
+    },
+    {
+      "nome": "descricao",
+      "tipo": "TEXTO",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    },
+    {
+      "nome": "data_hora",
+      "tipo": "DATA_HORA",
+      "modificadores": [
+        "NAO_NULO"
+      ]
+    }
+  ],
+  "criada_em": "2026-06-29T20:25:15.039296"
+}
