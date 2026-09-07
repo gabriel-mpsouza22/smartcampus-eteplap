@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+{% block titulo %}Controle de Visitantes{% endblock %}
+{% block topbar_titulo %}<svg class='icon'><use href='#i-users'></use></svg> Controle de Visitantes — Portaria{% endblock %}
+
+{% block estilos %}
+<style>
+.vs-layout { display: grid; grid-template-columns: 380px 1fr; gap: 20px; align-items: start; }
+.vs-card { background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio-lg); padding: 18px; }
+
+.vs-campo { margin-top: 14px; }
+.vs-campo label { display:block; font-size: .78rem; font-weight: 700; color: var(--texto-secundario); margin-bottom: 4px; }
+.vs-campo input, .vs-campo select { width: 100%; padding: 10px 12px; border: 1px solid var(--borda-forte); border-radius: var(--raio); font-size: .9rem; }
+.vs-campo:first-child { margin-top: 0; }
+
+.vs-busca-wrap { position: relative; }
+.vs-resultados { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--card);
+  border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: 0 8px 24px rgba(0,0,0,.12); z-index: 20; max-height: 220px; overflow-y: auto; }
+.vs-resultado-item { padding: 10px 12px; cursor: pointer; }
+.vs-resultado-item:hover { background: var(--fundo); }
+.vs-resultado-nome { font-weight: 700; font-size: .86rem; display: flex; align-items: center; gap: 6px; }
+.vs-resultado-meta { font-size: .74rem; color: var(--texto-secundario); }
+
+.vs-motivos { display: flex; flex-wrap: wrap; gap: 6px; }
+.vs-motivo-chip { padding: 8px 12px; border: 1px solid var(--borda-forte); border-radius: 999px; font-size: .82rem; cursor: pointer; background: var(--fundo); }
+.vs-motivo-chip.ativo { background: var(--azul); color: #fff; border-color: var(--azul); font-weight: 700; }
+
+.vs-adicionais summary { cursor: pointer; font-size: .8rem; font-weight: 700; color: var(--texto-secundario); margin-top: 12px; }
+
+.vs-recorrente { margin-top: 10px; padding: 8px 12px; background: var(--fundo); border-radius: var(--raio); font-size: .78rem; color: var(--texto-secundario); display: flex; align-items: center; gap: 6px; }
+.vs-alerta-duplicidade { margin-top: 10px; padding: 10px 12px; border-radius: var(--raio); background: #E76F5122; border: 1px solid #E76F51; font-size: .82rem; }
+.vs-alerta-duplicidade button { margin-top: 6px; }
+
+.vs-resumo { font-size: .86rem; color: var(--texto-secundario); margin-bottom: 12px; }
+.vs-resumo b { color: var(--texto); font-size: 1.1rem; }
+
+.vs-lista { display: flex; flex-direction: column; gap: 8px; }
+.vs-item { background: var(--card); border: 1px solid var(--borda); border-left: 4px solid var(--verde); border-radius: var(--raio); padding: 12px 16px; display: flex; align-items: center; gap: 14px; }
+.vs-item-hora { font-family: var(--fonte-mono); font-weight: 700; min-width: 50px; }
+.vs-item-info { flex: 1; }
+.vs-item-nome { font-weight: 700; font-size: .92rem; }
+.vs-item-meta { font-size: .78rem; color: var(--texto-secundario); }
+.vs-item-permanencia { font-size: .74rem; color: var(--texto-mudo); }
+
+.vs-confirmacao { text-align: center; padding: 22px; }
+.vs-confirmacao .icone-ok { color: var(--verde); }
+.vs-confirmacao .titulo { font-weight: 800; font-size: 1.05rem; margin-top: 8px; }
+.vs-confirmacao .detalhe { font-size: .84rem; color: var(--texto-secundario); margin-top: 4px; }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+<div class="vs-layout">
+
+  <div class="vs-card">
+    <div id="vs-form-wrap">
+      <div class="secao-titulo" style="font-size:1rem;">Nova visita</div>
+
+      <div class="vs-campo vs-busca-wrap">
+        <label>Nome do visitante</label>
+        <input type="text" id="vs-nome" placeholder="Digite o nome..." autocomplete="off">
+        <div class="vs-resultados" id="vs-resultados" style="display:none;"></div>
+      </div>
+      <div id="vs-recorrente-wrap"></div>
+      <div id="vs-duplicidade-wrap"></div>
+
+      <div class="vs-campo">
+        <label>Quem deseja visitar?</label>
+        <select id="vs-destino">
+          <option value="">Selecionar setor/pessoa...</option>
+          {% for d in destinos %}
+          <option value="{{ d }}">{{ d }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="vs-campo">
+        <label>Motivo da visita</label>
+        <div class="vs-motivos" id="vs-motivos">
+          {% for m in motivos %}
+          <div class="vs-motivo-chip" data-motivo="{{ m.id }}" onclick="selecionarMotivo('{{ m.id }}')">{{ m.label }}</div>
+          {% endfor %}
+        </div>
+        <input type="text" id="vs-motivo-detalhe" placeholder="Descreva brevemente o motivo..." style="display:none; margin-top:8px;">
+      </div>
+
+      <details class="vs-adicionais">
+        <summary>+ Informações adicionais</summary>
+        <div class="vs-campo">
+          <label>Documento / identificação (opcional)</label>
+          <input type="text" id="vs-documento" placeholder="Opcional">
+        </div>
+        <div class="vs-campo">
+          <label>Observação (opcional)</label>
+          <input type="text" id="vs-observacao" maxlength="200" placeholder="Opcional">
+        </div>
+      </details>
+
+      <div style="margin-top:18px;">
+        <button class="btn btn-primario" id="btn-registrar" onclick="registrarEntrada()" style="width:100%; padding:12px;">
+          <svg class='icon'><use href='#i-check'></use></svg> Registrar entrada
+        </button>
+      </div>
+    </div>
+
+    <div id="vs-confirmacao-wrap" style="display:none;"></div>
+  </div>
+
+  <div>
+    <div class="vs-resumo"><b id="vs-total-campus">0</b> visitantes atualmente no campus</div>
+    <div class="flex justify-between items-center mb-16">
+      <span class="secao-titulo" style="font-size:1rem;margin:0;">No campus agora</span>
+      <button class="btn btn-secundario btn-sm" onclick="carregarLista()"><svg class='icon'><use href='#i-refresh'></use></svg> Atualizar</button>
+    </div>
+    <div class="vs-lista" id="vs-lista"><div class="estado-vazio">Carregando…</div></div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let motivoSelecionado = null;
+
+document.addEventListener("DOMContentLoaded", () => {
+  carregarLista();
+  setInterval(carregarLista, 10000);
+  focarNome();
+
+  const input = document.getElementById("vs-nome");
+  let timer = null;
+  input.addEventListener("input", () => {
+    document.getElementById("vs-duplicidade-wrap").innerHTML = "";
+    document.getElementById("vs-recorrente-wrap").innerHTML = "";
+    clearTimeout(timer);
+    timer = setTimeout(() => buscarVisitante(input.value.trim()), 220);
+  });
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".vs-busca-wrap")) document.getElementById("vs-resultados").style.display = "none";
+  });
+});
+
+function focarNome() {
+  const el = document.getElementById("vs-nome");
+  if (el) el.focus();
+}
+
+function selecionarMotivo(id) {
+  motivoSelecionado = id;
+  document.querySelectorAll(".vs-motivo-chip").forEach(c => c.classList.toggle("ativo", c.dataset.motivo === id));
+  document.getElementById("vs-motivo-detalhe").style.display = id === "outro" ? "block" : "none";
+}
+
+async function buscarVisitante(termo) {
+  const caixa = document.getElementById("vs-resultados");
+  if (termo.length < 2) { caixa.style.display = "none"; return; }
+  const r = await api("get", `/visitantes/api/visitantes/buscar?q=${encodeURIComponent(termo)}`);
+  if (!r.ok || r.dados.length === 0) { caixa.style.display = "none"; return; }
+  caixa.innerHTML = r.dados.map(v => `
+    <div class="vs-resultado-item" onclick='usarNomeRecorrente(${JSON.stringify(v).replace(/'/g, "&#39;")})'>
+      <div class="vs-resultado-nome"><svg class='icon' style="width:14px;height:14px;"><use href='#i-user'></use></svg> ${v.nome}</div>
+      <div class="vs-resultado-meta">${v.visitas_anteriores} visita(s) · última: ${formatarData(v.ultima_visita)}${v.tem_visita_ativa ? " · já está no campus" : ""}</div>
+    </div>`).join("");
+  caixa.style.display = "block";
+}
+
+function usarNomeRecorrente(v) {
+  document.getElementById("vs-nome").value = v.nome;
+  document.getElementById("vs-resultados").style.display = "none";
+  document.getElementById("vs-recorrente-wrap").innerHTML = `
+    <div class="vs-recorrente"><svg class='icon' style="width:14px;height:14px;"><use href='#i-info'></use></svg>
+      Visitante recorrente — última visita: ${formatarData(v.ultima_visita)}, ${v.visitas_anteriores} visita(s) anteriores.</div>`;
+  if (v.tem_visita_ativa) {
+    document.getElementById("vs-duplicidade-wrap").innerHTML = `
+      <div class="vs-alerta-duplicidade">Este visitante já possui uma entrada ativa no campus.</div>`;
+  }
+}
+
+async function registrarEntrada() {
+  const nome = document.getElementById("vs-nome").value.trim();
+  const destino = document.getElementById("vs-destino").value;
+  if (!nome) { mostrarAlerta("Digite o nome do visitante.", "aviso"); focarNome(); return; }
+  if (!destino) { mostrarAlerta("Selecione quem o visitante deseja visitar.", "aviso"); return; }
+  if (!motivoSelecionado) { mostrarAlerta("Selecione o motivo da visita.", "aviso"); return; }
+
+  mostrarSpinner("btn-registrar");
+  const r = await api("post", "/visitantes/api/visitas", {
+    nome, destino,
+    motivo: motivoSelecionado,
+    motivo_detalhe: document.getElementById("vs-motivo-detalhe").value.trim(),
+    documento: document.getElementById("vs-documento").value.trim(),
+    observacao: document.getElementById("vs-observacao").value.trim(),
+  });
+  ocultarSpinner("btn-registrar");
+
+  if (!r.ok) {
+    if (r.dados?.visita_ativa) {
+      const va = r.dados.visita_ativa;
+      document.getElementById("vs-duplicidade-wrap").innerHTML = `
+        <div class="vs-alerta-duplicidade">${r.dados.erro}
+          <div class="vs-item-meta" style="margin-top:4px;">Destino: ${va.destino} · entrada às ${va.entrada_em.slice(11,16)} · permanência: ${va.permanencia_label}</div>
+        </div>`;
+    } else {
+      mostrarAlerta(r.dados?.erro || "Erro ao registrar entrada.", "erro");
+    }
+    return;
+  }
+
+  mostrarConfirmacaoEntrada(r.dados.visita);
+  carregarLista();
+}
+
+function mostrarConfirmacaoEntrada(v) {
+  document.getElementById("vs-form-wrap").style.display = "none";
+  const wrap = document.getElementById("vs-confirmacao-wrap");
+  wrap.style.display = "block";
+  wrap.innerHTML = `
+    <div class="vs-confirmacao">
+      <svg class="icon icone-ok" style="width:40px;height:40px;"><use href='#i-check-circle'></use></svg>
+      <div class="titulo">Entrada registrada</div>
+      <div class="detalhe">${v.visitante_nome}</div>
+      <div class="detalhe">Destino: ${v.destino}</div>
+      <div class="detalhe">${v.entrada_em.slice(11,16)}</div>
+      <button class="btn btn-primario" style="margin-top:16px;" onclick="novaVisita()">
+        <svg class='icon'><use href='#i-plus'></use></svg> Nova visita
+      </button>
+    </div>`;
+}
+
+function novaVisita() {
+  document.getElementById("vs-confirmacao-wrap").style.display = "none";
+  document.getElementById("vs-confirmacao-wrap").innerHTML = "";
+  document.getElementById("vs-form-wrap").style.display = "block";
+  document.getElementById("vs-nome").value = "";
+  document.getElementById("vs-destino").value = "";
+  document.getElementById("vs-motivo-detalhe").value = "";
+  document.getElementById("vs-motivo-detalhe").style.display = "none";
+  document.getElementById("vs-documento").value = "";
+  document.getElementById("vs-observacao").value = "";
+  document.getElementById("vs-duplicidade-wrap").innerHTML = "";
+  document.getElementById("vs-recorrente-wrap").innerHTML = "";
+  motivoSelecionado = null;
+  document.querySelectorAll(".vs-motivo-chip").forEach(c => c.classList.remove("ativo"));
+  focarNome();
+}
+
+async function carregarLista() {
+  const r = await api("get", "/visitantes/api/visitas?status=no_campus");
+  if (!r.ok) return;
+  document.getElementById("vs-total-campus").textContent = r.dados.length;
+
+  const caixa = document.getElementById("vs-lista");
+  if (r.dados.length === 0) {
+    caixa.innerHTML = `<div class="estado-vazio"><svg class='icon'><use href='#i-inbox'></use></svg> Nenhum visitante no campus.</div>`;
+    return;
+  }
+  caixa.innerHTML = r.dados.map(v => `
+    <div class="vs-item">
+      <div class="vs-item-hora">${v.entrada_em.slice(11,16)}</div>
+      <div class="vs-item-info">
+        <div class="vs-item-nome">${v.visitante_nome}</div>
+        <div class="vs-item-meta">${v.destino} · ${v.motivo_label}</div>
+        <div class="vs-item-permanencia">Permanência: ${v.permanencia_label}</div>
+      </div>
+      <button class="btn btn-secundario btn-sm" id="btn-saida-${v.id}" onclick="registrarSaida(${v.id})">
+        <svg class='icon'><use href='#i-close'></use></svg> Registrar saída
+      </button>
+    </div>`).join("");
+}
+
+async function registrarSaida(id) {
+  mostrarSpinner(`btn-saida-${id}`);
+  const r = await api("post", `/visitantes/api/visitas/${id}/saida`);
+  if (r.ok) {
+    mostrarAlerta(`✓ Saída registrada às ${r.dados.visita.saida_em.slice(11,16)}. Permanência: ${r.dados.visita.permanencia_label}.`, "sucesso");
+    carregarLista();
+  } else {
+    ocultarSpinner(`btn-saida-${id}`);
+    mostrarAlerta(r.dados?.erro || "Erro ao registrar saída.", "erro");
+    carregarLista();
+  }
+}
+
+</script>
+{% endblock %}
