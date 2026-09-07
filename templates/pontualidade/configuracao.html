@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block titulo %}Regras de Pontualidade{% endblock %}
+{% block topbar_titulo %}<svg class='icon'><use href='#i-wrench'></use></svg> Regras de Pontualidade{% endblock %}
+
+{% block topbar_acoes %}
+<a href="/pontualidade/dashboard" class="btn btn-secundario btn-sm"><svg class='icon'><use href='#i-arrow-left'></use></svg> Voltar ao painel</a>
+{% endblock %}
+
+{% block estilos %}
+<style>
+  .cf-linha-regra {
+    display: grid; grid-template-columns: 100px 100px 1fr 1fr 36px; gap: 10px; align-items: center;
+    padding: 10px 4px; border-bottom: 1px solid var(--borda);
+  }
+  .cf-linha-regra input, .cf-linha-regra select {
+    padding: 8px 10px; border: 1.5px solid var(--borda-forte); border-radius: 8px; font-size: .84rem;
+    background: var(--fundo); color: var(--texto); width: 100%;
+  }
+  .cf-remover { color: var(--texto-mudo); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .cf-remover:hover { color: var(--vermelho); }
+  .cf-cabecalho-regra { font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; color: var(--texto-mudo); font-weight: 700; }
+  .cf-reincidencia-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .cf-reincidencia-grid label { font-size: .78rem; color: var(--texto-secundario); font-weight: 600; display: block; margin-bottom: 6px; }
+  .cf-reincidencia-grid input, .cf-reincidencia-grid select {
+    width: 100%; padding: 10px 12px; border: 1.5px solid var(--borda-forte); border-radius: 8px; font-size: .88rem;
+    background: var(--fundo); color: var(--texto);
+  }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+
+<div class="painel-secao">
+  <div class="painel-secao-titulo"><svg class='icon'><use href='#i-clock'></use></svg> Faixas de horário</div>
+  <div class="painel-secao-sub">
+    Define o status de cada entrada de acordo com o horário. As faixas são aplicadas na ordem cronológica automaticamente.
+  </div>
+
+  <div class="cf-linha-regra" style="border-bottom:1.5px solid var(--borda-forte);">
+    <div class="cf-cabecalho-regra">De</div>
+    <div class="cf-cabecalho-regra">Até</div>
+    <div class="cf-cabecalho-regra">Status (identificador)</div>
+    <div class="cf-cabecalho-regra">Descrição exibida</div>
+    <div></div>
+  </div>
+  <div id="cf-lista-regras"></div>
+
+  <button class="btn btn-secundario btn-sm" style="margin-top:12px;" onclick="adicionarRegra()">
+    <svg class='icon'><use href='#i-plus'></use></svg> Adicionar faixa
+  </button>
+</div>
+
+<div class="painel-secao">
+  <div class="painel-secao-titulo"><svg class='icon'><use href='#i-warning'></use></svg> Regra de reincidência</div>
+  <div class="painel-secao-sub">Define quando um aluno passa a aparecer como "reincidente" no painel da coordenação.</div>
+
+  <div class="cf-reincidencia-grid">
+    <div>
+      <label>Condição</label>
+      <select id="cf-condicao">
+        <option value="mais_de">Mais de</option>
+        <option value="igual_ou_mais_de">Igual ou mais de</option>
+      </select>
+    </div>
+    <div>
+      <label>Quantidade de atrasos</label>
+      <input type="number" id="cf-minimo" min="1" value="3">
+    </div>
+    <div>
+      <label>Dentro do período de</label>
+      <select id="cf-periodo">
+        <option value="semana">1 semana</option>
+        <option value="mes">1 mês</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div style="display:flex;justify-content:flex-end;gap:8px;">
+  <button class="btn btn-primario" id="btn-salvar-config" onclick="salvarConfiguracao()">
+    <svg class='icon'><use href='#i-save'></use></svg> Salvar configuração
+  </button>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let regras = [];
+
+document.addEventListener("DOMContentLoaded", carregarConfiguracao);
+
+async function carregarConfiguracao() {
+  const r = await api("get", "/pontualidade/api/configuracao");
+  if (!r.ok) return;
+  regras = r.dados.regras;
+  document.getElementById("cf-condicao").value = r.dados.reincidencia.condicao;
+  document.getElementById("cf-minimo").value = r.dados.reincidencia.minimo_atrasos;
+  document.getElementById("cf-periodo").value = r.dados.reincidencia.periodo;
+  renderizarRegras();
+}
+
+function renderizarRegras() {
+  document.getElementById("cf-lista-regras").innerHTML = regras.map((r, i) => `
+    <div class="cf-linha-regra">
+      <input type="time" value="${r.de || ""}" onchange="regras[${i}].de = this.value">
+      <input type="time" value="${r.ate || ""}" onchange="regras[${i}].ate = this.value">
+      <input type="text" value="${r.status || ""}" placeholder="ex: atraso_leve" onchange="regras[${i}].status = this.value">
+      <input type="text" value="${r.label || ""}" placeholder="Texto mostrado ao porteiro" onchange="regras[${i}].label = this.value">
+      <div class="cf-remover" onclick="removerRegra(${i})" title="Remover">
+        <svg class='icon' style="width:16px;height:16px;"><use href='#i-close'></use></svg>
+      </div>
+    </div>`).join("");
+}
+
+function adicionarRegra() {
+  regras.push({ de: "", ate: "", status: "", label: "" });
+  renderizarRegras();
+}
+
+function removerRegra(indice) {
+  regras.splice(indice, 1);
+  renderizarRegras();
+}
+
+async function salvarConfiguracao() {
+  const reincidencia = {
+    condicao: document.getElementById("cf-condicao").value,
+    minimo_atrasos: parseInt(document.getElementById("cf-minimo").value, 10),
+    periodo: document.getElementById("cf-periodo").value,
+  };
+
+  mostrarSpinner("btn-salvar-config");
+  const r = await api("post", "/pontualidade/api/configuracao", { regras, reincidencia });
+  ocultarSpinner("btn-salvar-config");
+
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || r.erro || "Erro ao salvar.", "erro"); return; }
+  mostrarAlerta("Configuração salva com sucesso.", "sucesso");
+  carregarConfiguracao();
+}
+</script>
+{% endblock %}
