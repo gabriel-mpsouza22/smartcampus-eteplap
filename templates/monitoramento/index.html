@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block titulo %}Monitoramento{% endblock %}
+{% block topbar_titulo %}<svg class='icon'><use href='#i-bar-chart'></use></svg> Monitoramento Geral{% endblock %}
+
+{% block topbar_acoes %}
+<button class="btn btn-secundario btn-sm" onclick="carregarTudo()"><svg class='icon'><use href='#i-refresh'></use></svg> Atualizar</button>
+{% endblock %}
+
+{% block estilos %}
+<style>
+.iot-mini-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; }
+.iot-mini-card { background:var(--fundo); border-radius:var(--raio); padding:12px 14px; }
+.iot-mini-nome { font-size:.72rem; color:var(--texto-mudo); font-weight:600; }
+.iot-mini-valor { font-family:var(--fonte-mono); font-weight:700; font-size:1.1rem; margin-top:2px; }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+
+
+<div class="stats-grid">
+  <div class="stat-card"><div class="icone-caixa"><svg class='icon'><use href='#i-calendar'></use></svg></div>
+    <div><div class="stat-numero" id="g-reservas">—</div><div class="stat-label">Reservas no mês</div></div></div>
+  <div class="stat-card"><div class="icone-caixa"><svg class='icon'><use href='#i-books'></use></svg></div>
+    <div><div class="stat-numero" id="g-livros">—</div><div class="stat-label">Livros no acervo</div></div></div>
+  <div class="stat-card"><div class="icone-caixa"><svg class='icon'><use href='#i-book'></use></svg></div>
+    <div><div class="stat-numero" id="g-emprestimos">—</div><div class="stat-label">Empréstimos ativos</div></div></div>
+  <div class="stat-card"><div class="icone-caixa"><svg class='icon'><use href='#i-clock'></use></svg></div>
+    <div><div class="stat-numero" id="g-atrasados" style="color:var(--vermelho)">—</div><div class="stat-label">Livros atrasados</div></div></div>
+  <div class="stat-card"><div class="icone-caixa"><svg class='icon'><use href='#i-clipboard'></use></svg></div>
+    <div><div class="stat-numero" id="g-ocorrencias">—</div><div class="stat-label">Ocorrências no mês</div></div></div>
+  <div class="stat-card"><div class="icone-caixa"><svg class='icon'><use href='#i-warning'></use></svg></div>
+    <div><div class="stat-numero" id="g-alerta" style="color:var(--vermelho)">—</div><div class="stat-label">Alunos em alerta</div></div></div>
+</div>
+
+
+<div class="periodo-barra">
+  <span class="periodo-label">Período dos rankings:</span>
+  <button class="periodo-btn ativo" data-periodo="mes" onclick="trocarPeriodo(this,'mes')">Este mês</button>
+  <button class="periodo-btn" data-periodo="tudo" onclick="trocarPeriodo(this,'tudo')">Todos os tempos</button>
+</div>
+
+<div class="secoes-grid">
+
+  
+  <div class="painel-secao">
+    <div class="painel-secao-titulo"><svg class='icon'><use href='#i-calendar'></use></svg> Recursos mais reservados</div>
+    <div class="painel-secao-sub" id="sub-recursos">Ranking de uso do módulo de agendamento</div>
+    <div id="rank-recursos"></div>
+  </div>
+
+  <div class="painel-secao">
+    <div class="painel-secao-titulo"><svg class='icon'><use href='#i-user'></use></svg> Professores que mais reservam</div>
+    <div class="painel-secao-sub" id="sub-professores">Top 5 no período selecionado</div>
+    <div id="rank-professores"></div>
+  </div>
+
+  
+  <div class="painel-secao">
+    <div class="painel-secao-titulo"><svg class='icon'><use href='#i-books'></use></svg> Livros mais emprestados</div>
+    <div class="painel-secao-sub" id="sub-livros">Top 6 no período selecionado</div>
+    <div id="rank-livros"></div>
+  </div>
+
+  <div class="painel-secao">
+    <div class="painel-secao-titulo"><svg class='icon'><use href='#i-trending-up'></use></svg> Empréstimos por mês</div>
+    <div class="painel-secao-sub">Últimos 6 meses · passe o mouse sobre um ponto para ver o número</div>
+    <div class="grafico-linha-wrap" id="grafico-emprestimos-mes"></div>
+  </div>
+
+  
+  <div class="painel-secao">
+    <div class="painel-secao-titulo"><svg class='icon'><use href='#i-clipboard'></use></svg> Ocorrências por tipo</div>
+    <div class="painel-secao-sub" id="sub-tipos">No período selecionado</div>
+    <div id="rank-tipos-ocorrencia"></div>
+  </div>
+
+  <div class="painel-secao">
+    <div class="painel-secao-titulo"><svg class='icon'><use href='#i-school'></use></svg> Turmas com mais ocorrências</div>
+    <div class="painel-secao-sub" id="sub-turmas">Excluindo elogios · período selecionado</div>
+    <div id="rank-turmas"></div>
+  </div>
+
+  <div class="painel-secao full-width">
+    <div class="painel-secao-titulo"><svg class='icon'><use href='#i-trending-up'></use></svg> Tendência de ocorrências</div>
+    <div class="painel-secao-sub">Últimos 6 meses (exceto elogios) · passe o mouse sobre um ponto para ver o número</div>
+    <div class="grafico-linha-wrap" id="grafico-ocorrencias-mes"></div>
+  </div>
+
+  
+  <div class="painel-secao full-width">
+    <div class="painel-secao-titulo"><svg class='icon'><use href='#i-antenna'></use></svg> Resumo IoT (últimos 30 dias)</div>
+    <div class="painel-secao-sub">
+      <span id="iot-resumo-texto">Carregando…</span> ·
+      <a href="/iot/painel">Ver painel completo <svg class='icon'><use href='#i-arrow-right'></use></svg></a>
+    </div>
+    <div class="iot-mini-grid" id="iot-mini-grid"></div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let periodoAtivo = "mes"; 
+
+document.addEventListener("DOMContentLoaded", () => {
+  carregarTudo();
+});
+
+async function carregarTudo() {
+  carregarGeral();
+  carregarAgendamento();
+  carregarBiblioteca();
+  carregarOcorrencias();
+  carregarIot();
+}
+
+
+function trocarPeriodo(btn, periodo) {
+  if (periodo === periodoAtivo) return;
+  document.querySelectorAll(".periodo-btn").forEach(b => b.classList.remove("ativo"));
+  btn.classList.add("ativo");
+  periodoAtivo = periodo;
+  carregarAgendamento();
+  carregarBiblioteca();
+  carregarOcorrencias();
+}
+
+function textoPeriodo() {
+  return periodoAtivo === "mes" ? "este mês" : "todos os tempos";
+}
+
+
+async function carregarGeral() {
+  const r = await api("get", "/monitoramento/api/geral");
+  if (!r.ok) return;
+  document.getElementById("g-reservas").textContent    = r.dados.reservas_ativas_mes;
+  document.getElementById("g-livros").textContent      = r.dados.livros_total;
+  document.getElementById("g-emprestimos").textContent = r.dados.emprestimos_ativos;
+  document.getElementById("g-atrasados").textContent   = r.dados.emprestimos_atrasados;
+  document.getElementById("g-ocorrencias").textContent = r.dados.ocorrencias_mes;
+  document.getElementById("g-alerta").textContent      = r.dados.alunos_em_alerta;
+}
+
+
+async function carregarAgendamento() {
+  const r = await api("get", `/monitoramento/api/agendamento?periodo=${periodoAtivo}`);
+  if (!r.ok) return;
+  renderRanking("rank-recursos", r.dados.top_recursos, "nome", "total");
+  renderRanking("rank-professores", r.dados.top_professores, "nome", "total");
+  document.getElementById("sub-recursos").textContent = `Ranking de uso — ${textoPeriodo()}`;
+  document.getElementById("sub-professores").textContent = `Top 5 — ${textoPeriodo()}`;
+}
+
+
+async function carregarBiblioteca() {
+  const r = await api("get", `/monitoramento/api/biblioteca?periodo=${periodoAtivo}`);
+  if (!r.ok) return;
+
+  const livrosFormatados = r.dados.top_livros.map(l => ({ nome: `${l.nome}`, total: l.total }));
+  renderRanking("rank-livros", livrosFormatados, "nome", "total");
+  document.getElementById("sub-livros").textContent = `Top 6 — ${textoPeriodo()}`;
+
+  desenharLinha("grafico-emprestimos-mes", r.dados.serie_mensal.labels, [
+    { nome: "Empréstimos", cor: "var(--grafico-2)", valores: r.dados.serie_mensal.valores }
+  ]);
+}
+
+
+async function carregarOcorrencias() {
+  const r = await api("get", `/monitoramento/api/ocorrencias?periodo=${periodoAtivo}`);
+  if (!r.ok) return;
+
+  renderRanking("rank-tipos-ocorrencia", r.dados.por_tipo, "nome", "total");
+  renderRanking("rank-turmas", r.dados.top_turmas, "nome", "total");
+  document.getElementById("sub-tipos").textContent = `Distribuição — ${textoPeriodo()}`;
+  document.getElementById("sub-turmas").textContent = `Excluindo elogios — ${textoPeriodo()}`;
+
+  desenharLinha("grafico-ocorrencias-mes", r.dados.serie_mensal.labels, [
+    { nome: "Ocorrências", cor: "var(--vermelho)", valores: r.dados.serie_mensal.valores }
+  ]);
+}
+
+
+async function carregarIot() {
+  const r = await api("get", "/monitoramento/api/iot");
+  if (!r.ok) return;
+
+  document.getElementById("iot-resumo-texto").textContent =
+    `${r.dados.total_eventos_portao_30d} eventos de portão · ${r.dados.total_eventos_ac_30d} eventos de A/C · ${r.dados.total_leituras_agua_30d} leituras de água`;
+
+  const grid = document.getElementById("iot-mini-grid");
+  if (r.dados.agua_ultimas.length === 0) {
+    grid.innerHTML = `<div class="estado-vazio">Nenhuma leitura de água nos últimos 30 dias.</div>`;
+    return;
+  }
+  grid.innerHTML = r.dados.agua_ultimas.map(a => `
+    <div class="iot-mini-card">
+      <div class="iot-mini-nome">${a.sensor_id.replace('_',' ')}</div>
+      <div class="iot-mini-valor">${a.valor}%</div>
+    </div>`).join("");
+}
+</script>
+{% endblock %}
