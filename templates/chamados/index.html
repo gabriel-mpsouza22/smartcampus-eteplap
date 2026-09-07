@@ -1,0 +1,499 @@
+{% extends "base.html" %}
+{% block titulo %}Chamados Técnicos{% endblock %}
+{% block topbar_titulo %}Chamados Técnicos{% endblock %}
+
+{% block topbar_acoes %}
+{% if pode_abrir %}
+<button class="btn btn-primario" onclick="abrirModalNovoChamado()">
+  <svg class="icon"><use href="#i-plus"></use></svg> Novo chamado
+</button>
+{% endif %}
+{% endblock %}
+
+{% block estilos %}
+<style>
+.chamados-intro { display:flex; align-items:flex-start; gap:10px; }
+
+.quadro-chamados {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 960px) { .quadro-chamados { grid-template-columns: 1fr; } }
+
+.coluna-chamados-titulo {
+  display: flex; align-items: center; justify-content: space-between;
+  font-weight: 700; font-size: 0.86rem; margin-bottom: 10px; padding: 0 2px;
+}
+.coluna-chamados-contagem {
+  font-size: 0.72rem; font-weight: 700; color: var(--texto-mudo);
+  background: var(--bg-fundo2); border-radius: 999px; padding: 1px 9px;
+}
+.coluna-chamados-lista { display:flex; flex-direction:column; gap:10px; min-height: 60px; }
+
+.chamado-card {
+  background: var(--card); border: 1px solid var(--borda); border-left: 3px solid var(--texto-mudo);
+  border-radius: var(--raio-lg); padding: 13px 14px; cursor: pointer; text-align: left;
+  display: flex; flex-direction: column; gap: 7px;
+  transition: box-shadow var(--transicao), transform var(--transicao), border-color var(--transicao);
+}
+.chamado-card:hover { box-shadow: var(--sombra-md); transform: translateY(-1px); }
+
+.chamado-card-topo { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+.chamado-card-titulo { font-weight: 600; font-size: 0.87rem; line-height: 1.35; }
+.chamado-card-categoria {
+  display:flex; align-items:center; gap:6px; font-size:0.76rem; color: var(--texto-secundario);
+}
+.chamado-card-local { display:flex; align-items:center; gap:5px; font-size:0.76rem; color: var(--texto-mudo); }
+.chamado-card-rodape { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:2px; }
+.chamado-card-quem { font-size: 0.73rem; color: var(--texto-mudo); }
+.chamado-card-quando { font-size: 0.71rem; color: var(--texto-mudo); }
+
+.coluna-vazia {
+  border: 1.5px dashed var(--borda); border-radius: var(--raio-lg);
+  padding: 22px 14px; text-align:center; color: var(--texto-mudo); font-size: 0.8rem;
+}
+
+/* modal de abertura/detalhe */
+.chip-categoria-grade { display:flex; flex-wrap:wrap; gap:8px; margin-top: 4px; }
+.chip-categoria {
+  display:flex; align-items:center; gap:7px; padding: 8px 13px; border-radius: 999px;
+  border: 1px solid var(--borda-forte); background: var(--card); cursor:pointer;
+  font-size: 0.81rem; font-weight: 600; color: var(--texto-secundario);
+  transition: background var(--transicao), border-color var(--transicao), color var(--transicao);
+}
+.chip-categoria.ativo { border-color: var(--preto); background: var(--bg-fundo2); color: var(--texto); }
+
+.prioridade-grade { display:flex; gap:8px; margin-top:4px; }
+.chip-prioridade {
+  flex:1; text-align:center; padding: 8px; border-radius: var(--raio); cursor:pointer;
+  border: 1px solid var(--borda-forte); font-size:0.81rem; font-weight:600; color: var(--texto-secundario);
+  transition: background var(--transicao), border-color var(--transicao), color var(--transicao);
+}
+.chip-prioridade.ativo.baixo    { border-color: var(--verde);    background: var(--verde-claro);    color: var(--verde); }
+.chip-prioridade.ativo.moderado { border-color: var(--amarelo);  background: var(--amarelo-claro);   color: var(--amarelo); }
+.chip-prioridade.ativo.critico  { border-color: var(--vermelho); background: var(--vermelho-claro);  color: var(--vermelho); }
+
+.detalhe-linha { display:flex; gap:10px; align-items:flex-start; padding: 9px 0; border-bottom: 1px solid var(--borda); }
+.detalhe-linha:last-child { border-bottom: none; }
+.detalhe-linha-rotulo { font-size:0.73rem; color: var(--texto-mudo); width: 108px; flex-shrink:0; padding-top:1px; }
+.detalhe-linha-valor { font-size:0.86rem; color: var(--texto); line-height:1.5; }
+
+.caixa-resolucao { background: var(--verde-claro); border-radius: var(--raio); padding: 12px 14px; margin-top: 4px; }
+.caixa-resolucao-titulo { font-size:0.72rem; font-weight:700; color: var(--verde); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px; }
+.caixa-resolucao-texto { font-size:0.85rem; color: var(--texto); line-height:1.5; }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+
+<div class="alerta alerta-info chamados-intro">
+  <svg class='icon'><use href='#i-info'></use></svg>
+  {% if pode_atender %}
+  <span>Essa é a fila de suporte técnico atendida pelos alunos do curso de Redes de Computadores. Assuma um chamado da coluna <strong>Aberto</strong> para começar a atender.</span>
+  {% elif pode_abrir %}
+  <span>Abra um chamado sempre que encontrar um problema técnico em sala ou laboratório — os alunos do curso de Redes cuidam do atendimento.</span>
+  {% else %}
+  <span>Acompanhamento de todos os chamados técnicos abertos na escola.</span>
+  {% endif %}
+</div>
+
+<div class="grade-stats mb-24">
+  <div class="stat-box">
+    <div class="stat-box-numero" id="stat-aberto">—</div>
+    <div class="stat-box-label">Aguardando</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-box-numero" id="stat-em_atendimento">—</div>
+    <div class="stat-box-label">Em atendimento</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-box-numero" id="stat-resolvido">—</div>
+    <div class="stat-box-label">Resolvidos</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-box-numero" id="stat-total">—</div>
+    <div class="stat-box-label">Total</div>
+  </div>
+</div>
+
+<div class="quadro-chamados">
+
+  <div>
+    <div class="coluna-chamados-titulo">
+      <span>Aberto</span>
+      <span class="coluna-chamados-contagem" id="contagem-aberto">0</span>
+    </div>
+    <div class="coluna-chamados-lista" id="coluna-aberto"></div>
+  </div>
+
+  <div>
+    <div class="coluna-chamados-titulo">
+      <span>Em atendimento</span>
+      <span class="coluna-chamados-contagem" id="contagem-em_atendimento">0</span>
+    </div>
+    <div class="coluna-chamados-lista" id="coluna-em_atendimento"></div>
+  </div>
+
+  <div>
+    <div class="coluna-chamados-titulo">
+      <span>Resolvido</span>
+      <span class="coluna-chamados-contagem" id="contagem-resolvido">0</span>
+    </div>
+    <div class="coluna-chamados-lista" id="coluna-resolvido"></div>
+  </div>
+
+</div>
+
+
+<!-- modal: abrir novo chamado -->
+<dialog class="modal modal-formulario" id="modal-novo-chamado">
+  <div class="modal-corpo">
+    <div class="modal-titulo">Abrir chamado técnico</div>
+    <p class="modal-texto mb-16">Descreva o problema em poucas palavras — quanto mais claro, mais rápido o atendimento.</p>
+
+    <div class="campo">
+      <label for="nc-titulo">O que está acontecendo?</label>
+      <input type="text" id="nc-titulo" placeholder="Ex: Monitor da máquina 4 não liga" maxlength="120">
+    </div>
+
+    <div class="campo">
+      <label>Categoria</label>
+      <div class="chip-categoria-grade" id="nc-categorias">
+        {% for c in categorias %}
+        <button type="button" class="chip-categoria" data-categoria="{{ c.id }}" onclick="selecionarCategoria('{{ c.id }}')">
+          <svg class="icon"><use href="#{{ c.icone }}"></use></svg> {{ c.nome }}
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="campo">
+      <label for="nc-local">Onde é o problema?</label>
+      <input type="text" id="nc-local" placeholder="Ex: Laboratório de Informática 2, máquina 4">
+    </div>
+
+    <div class="campo">
+      <label>Prioridade</label>
+      <div class="prioridade-grade" id="nc-prioridades">
+        {% for p in prioridades %}
+        <button type="button" class="chip-prioridade {{ p.classe }} {{ 'ativo' if p.id == 'media' else '' }}"
+                data-prioridade="{{ p.id }}" onclick="selecionarPrioridade('{{ p.id }}')">{{ p.nome }}</button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="campo">
+      <label for="nc-descricao">Detalhes (opcional)</label>
+      <textarea id="nc-descricao" rows="3" placeholder="Qualquer detalhe que ajude quem for atender…"></textarea>
+    </div>
+  </div>
+  <div class="modal-acoes">
+    <button class="btn btn-secundario" onclick="document.getElementById('modal-novo-chamado').close()">Cancelar</button>
+    <button class="btn btn-primario" id="btn-abrir-chamado" onclick="enviarNovoChamado()">Abrir chamado</button>
+  </div>
+</dialog>
+
+
+<!-- modal: detalhe / atender chamado -->
+<dialog class="modal modal-formulario" id="modal-detalhe">
+  <div class="modal-corpo" id="detalhe-corpo">
+    <!-- preenchido via JS -->
+  </div>
+  <div class="modal-acoes" id="detalhe-acoes">
+    <!-- preenchido via JS -->
+  </div>
+</dialog>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PODE_ABRIR   = {{ pode_abrir|tojson }};
+const PODE_ATENDER = {{ pode_atender|tojson }};
+
+let categoriaSelecionada  = null;
+let prioridadeSelecionada = "media";
+let chamadosCache = [];
+
+function selecionarCategoria(id) {
+  categoriaSelecionada = id;
+  document.querySelectorAll('#nc-categorias .chip-categoria').forEach(el => {
+    el.classList.toggle('ativo', el.dataset.categoria === id);
+  });
+}
+
+function selecionarPrioridade(id) {
+  prioridadeSelecionada = id;
+  document.querySelectorAll('#nc-prioridades .chip-prioridade').forEach(el => {
+    el.classList.toggle('ativo', el.dataset.prioridade === id);
+  });
+}
+
+function abrirModalNovoChamado() {
+  document.getElementById('nc-titulo').value = '';
+  document.getElementById('nc-local').value = '';
+  document.getElementById('nc-descricao').value = '';
+  selecionarCategoria(null);
+  selecionarPrioridade('media');
+  document.getElementById('modal-novo-chamado').showModal();
+  setTimeout(() => document.getElementById('nc-titulo').focus(), 50);
+}
+
+async function enviarNovoChamado() {
+  const titulo = document.getElementById('nc-titulo').value.trim();
+  const local  = document.getElementById('nc-local').value.trim();
+  const descricao = document.getElementById('nc-descricao').value.trim();
+
+  if (!titulo) { mostrarAlerta('Descreva o que está acontecendo.', 'aviso'); return; }
+  if (!categoriaSelecionada) { mostrarAlerta('Selecione uma categoria.', 'aviso'); return; }
+  if (!local) { mostrarAlerta('Informe onde é o problema.', 'aviso'); return; }
+
+  mostrarSpinner('btn-abrir-chamado');
+  try {
+    const resp = await fetch('/chamados/api/chamados', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        titulo, local, descricao,
+        categoria: categoriaSelecionada,
+        prioridade: prioridadeSelecionada,
+      }),
+    });
+    const dados = await resp.json();
+    if (!resp.ok || !dados.ok) throw new Error(dados.erro || 'Não foi possível abrir o chamado.');
+
+    document.getElementById('modal-novo-chamado').close();
+    mostrarAlerta('Chamado aberto! Assim que alguém assumir, você acompanha por aqui.', 'sucesso');
+    await carregarTudo();
+  } catch (e) {
+    mostrarAlerta(e.message, 'erro');
+  } finally {
+    ocultarSpinner('btn-abrir-chamado');
+  }
+}
+
+function iconePrioridade(p) {
+  return { baixo: 'pill-baixo', moderado: 'pill-alto', critico: 'pill-critico' }[p.classe] || 'pill-baixo';
+}
+
+function tempoRelativo(iso) {
+  if (!iso) return '';
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(diffMs / 60000);
+  if (min < 1) return 'agora mesmo';
+  if (min < 60) return `há ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `há ${h}h`;
+  const d = Math.floor(h / 24);
+  return `há ${d}d`;
+}
+
+function renderizarCard(c) {
+  const bordaClasse = { baixo: 'borda-baixo', moderado: 'borda-moderado', critico: 'borda-critico' }[c.prioridade_info.classe];
+  const quem = c.status === 'aberto'
+    ? `aberto por ${c.aberto_por_nome}`
+    : c.status === 'em_atendimento'
+      ? `com ${c.atribuido_a_nome}`
+      : c.status === 'resolvido'
+        ? `resolvido por ${c.atribuido_a_nome}`
+        : '';
+
+  const div = document.createElement('button');
+  div.type = 'button';
+  div.className = `chamado-card ${bordaClasse}`;
+  div.onclick = () => abrirDetalhe(c.id);
+  div.innerHTML = `
+    <div class="chamado-card-topo">
+      <div class="chamado-card-titulo">${escapeHtml(c.titulo)}</div>
+      <span class="pill ${iconePrioridade(c.prioridade_info)} text-xs">${c.prioridade_info.nome}</span>
+    </div>
+    <div class="chamado-card-categoria">
+      <svg class="icon"><use href="#${c.categoria_info.icone}"></use></svg> ${c.categoria_info.nome}
+    </div>
+    <div class="chamado-card-local">
+      <svg class="icon"><use href="#i-map-pin"></use></svg> ${escapeHtml(c.local)}
+    </div>
+    <div class="chamado-card-rodape">
+      <span class="chamado-card-quem">${escapeHtml(quem)}</span>
+      <span class="chamado-card-quando">${tempoRelativo(c.aberto_em)}</span>
+    </div>
+  `;
+  return div;
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s ?? '';
+  return d.innerHTML;
+}
+
+async function carregarChamados() {
+  const resp = await fetch('/chamados/api/chamados');
+  chamadosCache = await resp.json();
+
+  ['aberto', 'em_atendimento', 'resolvido'].forEach(status => {
+    const coluna = document.getElementById(`coluna-${status}`);
+    coluna.innerHTML = '';
+    const itens = chamadosCache.filter(c => c.status === status);
+    document.getElementById(`contagem-${status}`).textContent = itens.length;
+
+    if (itens.length === 0) {
+      coluna.innerHTML = `<div class="coluna-vazia">Nada por aqui</div>`;
+      return;
+    }
+    itens.slice(0, 30).forEach(c => coluna.appendChild(renderizarCard(c)));
+  });
+}
+
+async function carregarStats() {
+  const resp = await fetch('/chamados/api/stats');
+  const s = await resp.json();
+  document.getElementById('stat-aberto').textContent = s.aberto;
+  document.getElementById('stat-em_atendimento').textContent = s.em_atendimento;
+  document.getElementById('stat-resolvido').textContent = s.resolvido;
+  document.getElementById('stat-total').textContent = s.total;
+}
+
+async function carregarTudo() {
+  await Promise.all([carregarChamados(), carregarStats()]);
+}
+
+function abrirDetalhe(id) {
+  const c = chamadosCache.find(x => x.id === id);
+  if (!c) return;
+
+  const corpo = document.getElementById('detalhe-corpo');
+  const acoes = document.getElementById('detalhe-acoes');
+
+  let linhas = `
+    <div class="modal-titulo">${escapeHtml(c.titulo)}</div>
+    <div class="detalhe-linha">
+      <div class="detalhe-linha-rotulo">Categoria</div>
+      <div class="detalhe-linha-valor">${c.categoria_info.nome}</div>
+    </div>
+    <div class="detalhe-linha">
+      <div class="detalhe-linha-rotulo">Local</div>
+      <div class="detalhe-linha-valor">${escapeHtml(c.local)}</div>
+    </div>
+    <div class="detalhe-linha">
+      <div class="detalhe-linha-rotulo">Prioridade</div>
+      <div class="detalhe-linha-valor"><span class="pill ${iconePrioridade(c.prioridade_info)}">${c.prioridade_info.nome}</span></div>
+    </div>
+    <div class="detalhe-linha">
+      <div class="detalhe-linha-rotulo">Aberto por</div>
+      <div class="detalhe-linha-valor">${escapeHtml(c.aberto_por_nome)} · ${tempoRelativo(c.aberto_em)}</div>
+    </div>
+    ${c.descricao ? `
+    <div class="detalhe-linha">
+      <div class="detalhe-linha-rotulo">Detalhes</div>
+      <div class="detalhe-linha-valor">${escapeHtml(c.descricao)}</div>
+    </div>` : ''}
+    ${c.atribuido_a_nome ? `
+    <div class="detalhe-linha">
+      <div class="detalhe-linha-rotulo">Atendido por</div>
+      <div class="detalhe-linha-valor">${escapeHtml(c.atribuido_a_nome)} · ${tempoRelativo(c.assumido_em)}</div>
+    </div>` : ''}
+  `;
+
+  if (c.status === 'resolvido') {
+    linhas += `
+    <div class="caixa-resolucao">
+      <div class="caixa-resolucao-titulo">Como foi resolvido</div>
+      <div class="caixa-resolucao-texto">${escapeHtml(c.resolucao)}</div>
+    </div>`;
+  }
+
+  if (c.status === 'em_atendimento' && PODE_ATENDER) {
+    linhas += `
+    <div class="campo mt-16">
+      <label for="det-resolucao">Descreva o que foi feito pra resolver</label>
+      <textarea id="det-resolucao" rows="3" placeholder="Ex: Cabo de vídeo estava solto, reconectado e testado."></textarea>
+    </div>`;
+  }
+
+  corpo.innerHTML = linhas;
+
+  let botoes = `<button class="btn btn-secundario" onclick="document.getElementById('modal-detalhe').close()">Fechar</button>`;
+
+  if (c.status === 'aberto' && PODE_ATENDER) {
+    botoes += `<button class="btn btn-primario" id="btn-assumir" onclick="assumirChamado(${c.id})">Assumir chamado</button>`;
+  }
+  if (c.status === 'em_atendimento' && PODE_ATENDER) {
+    botoes += `<button class="btn btn-sucesso" id="btn-resolver" onclick="resolverChamado(${c.id})">Marcar como resolvido</button>`;
+  }
+  if ((c.status === 'aberto' || c.status === 'em_atendimento')) {
+    botoes += `<button class="btn btn-perigo" id="btn-cancelar" onclick="cancelarChamado(${c.id})">Cancelar</button>`;
+  }
+
+  acoes.innerHTML = botoes;
+  document.getElementById('modal-detalhe').showModal();
+}
+
+async function assumirChamado(id) {
+  mostrarSpinner('btn-assumir');
+  try {
+    const resp = await fetch(`/chamados/api/chamados/${id}/assumir`, { method: 'POST' });
+    const dados = await resp.json();
+    if (!resp.ok || !dados.ok) throw new Error(dados.erro || 'Não foi possível assumir o chamado.');
+    document.getElementById('modal-detalhe').close();
+    mostrarAlerta('Chamado assumido. Bora resolver!', 'sucesso');
+    await carregarTudo();
+  } catch (e) {
+    mostrarAlerta(e.message, 'erro');
+  } finally {
+    ocultarSpinner('btn-assumir');
+  }
+}
+
+async function resolverChamado(id) {
+  const resolucao = (document.getElementById('det-resolucao')?.value || '').trim();
+  if (!resolucao) { mostrarAlerta('Descreva o que foi feito pra resolver.', 'aviso'); return; }
+
+  mostrarSpinner('btn-resolver');
+  try {
+    const resp = await fetch(`/chamados/api/chamados/${id}/resolver`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resolucao }),
+    });
+    const dados = await resp.json();
+    if (!resp.ok || !dados.ok) throw new Error(dados.erro || 'Não foi possível concluir o chamado.');
+    document.getElementById('modal-detalhe').close();
+    mostrarAlerta('Chamado resolvido. Obrigado!', 'sucesso');
+    await carregarTudo();
+  } catch (e) {
+    mostrarAlerta(e.message, 'erro');
+  } finally {
+    ocultarSpinner('btn-resolver');
+  }
+}
+
+function cancelarChamado(id) {
+  confirmarAcao({
+    titulo: 'Cancelar chamado?',
+    texto: 'Essa ação não pode ser desfeita.',
+    rotuloConfirmar: 'Cancelar chamado',
+    perigoso: true,
+  }).then(async (confirmado) => {
+    if (!confirmado) return;
+    try {
+      const resp = await fetch(`/chamados/api/chamados/${id}/cancelar`, { method: 'POST' });
+      const dados = await resp.json();
+      if (!resp.ok || !dados.ok) throw new Error(dados.erro || 'Não foi possível cancelar.');
+      document.getElementById('modal-detalhe').close();
+      mostrarAlerta('Chamado cancelado.', 'info');
+      await carregarTudo();
+    } catch (e) {
+      mostrarAlerta(e.message, 'erro');
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  carregarTudo();
+  setInterval(carregarTudo, 20000);
+});
+</script>
+{% endblock %}
