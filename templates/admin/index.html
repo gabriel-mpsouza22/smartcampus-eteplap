@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block titulo %}Administração{% endblock %}
+{% block topbar_titulo %}Administração{% endblock %}
+
+{% block conteudo %}
+
+<div class="mb-24">
+  <h2 class="secao-titulo">Administração</h2>
+  <p class="secao-subtitulo">Usuários, backups, configurações e recursos do sistema.</p>
+</div>
+
+<div class="grade-modulos mb-24">
+  <a href="/admin/usuarios" class="card-modulo card-modulo-linha">
+    <div class="icone-caixa" aria-hidden="true"><svg class='icon'><use href='#i-users'></use></svg></div>
+    <div>
+      <div class="card-modulo-nome">Usuários</div>
+      <p class="text-xs text-mudo" style="margin-top:4px;">Criar, desativar e redefinir senhas de acesso.</p>
+    </div>
+  </a>
+  <a href="/admin/cargos" class="card-modulo card-modulo-linha">
+    <div class="icone-caixa" aria-hidden="true"><svg class='icon'><use href='#i-key'></use></svg></div>
+    <div>
+      <div class="card-modulo-nome">Cargos e Permissões</div>
+      <p class="text-xs text-mudo" style="margin-top:4px;">Criar cargos, escolher o que cada um acessa e restringir por turno.</p>
+    </div>
+  </a>
+  <a href="/admin/backup" class="card-modulo card-modulo-linha">
+    <div class="icone-caixa" aria-hidden="true"><svg class='icon'><use href='#i-save'></use></svg></div>
+    <div>
+      <div class="card-modulo-nome">Backup</div>
+      <p class="text-xs text-mudo" style="margin-top:4px;">Gerar e baixar cópias de segurança do banco de dados.</p>
+    </div>
+  </a>
+  <a href="/admin/modulos" class="card-modulo card-modulo-linha">
+    <div class="icone-caixa" aria-hidden="true"><svg class='icon'><use href='#i-grid'></use></svg></div>
+    <div>
+      <div class="card-modulo-nome">Módulos Contratados</div>
+      <p class="text-xs text-mudo" style="margin-top:4px;">Ligar ou desligar módulos do pacote desta escola — sem editar arquivos.</p>
+    </div>
+  </a>
+  <a href="/admin/configuracoes" class="card-modulo card-modulo-linha">
+    <div class="icone-caixa" aria-hidden="true"><svg class='icon'><use href='#i-tools'></use></svg></div>
+    <div>
+      <div class="card-modulo-nome">Configurações</div>
+      <p class="text-xs text-mudo" style="margin-top:4px;">Porta do servidor, endereço de rede e logs do sistema.</p>
+    </div>
+  </a>
+  <a href="/admin/recursos" class="card-modulo card-modulo-linha">
+    <div class="icone-caixa" aria-hidden="true"><svg class='icon'><use href='#i-calendar'></use></svg></div>
+    <div>
+      <div class="card-modulo-nome">Recursos do Agendamento</div>
+      <p class="text-xs text-mudo" style="margin-top:4px;">Salas, laboratórios e equipamentos reserváveis.</p>
+    </div>
+  </a>
+  <a href="/admin/dispositivos-iot" class="card-modulo card-modulo-linha">
+    <div class="icone-caixa" aria-hidden="true"><svg class='icon'><use href='#i-antenna'></use></svg></div>
+    <div>
+      <div class="card-modulo-nome">Dispositivos IoT</div>
+      <p class="text-xs text-mudo" style="margin-top:4px;">Sensores de água, portões e ar-condicionado.</p>
+    </div>
+  </a>
+</div>
+
+<div class="secao-titulo" style="font-size:1rem;">Status do sistema</div>
+<div class="grade-stats" id="stats-sistema">
+  <div class="stat-box">
+    <div class="stat-box-numero" id="s-tabelas">—</div>
+    <div class="stat-box-label">Tabelas no banco</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-box-numero" id="s-tamanho">—</div>
+    <div class="stat-box-label">Tamanho dos dados</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-box-numero" id="s-versao">—</div>
+    <div class="stat-box-label">Versão do sistema</div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(async () => {
+  const r = await api("get", "/admin/api/status-sistema");
+  if (!r.ok) return;
+  document.getElementById("s-tabelas").textContent = r.dados.total_tabelas;
+  document.getElementById("s-tamanho").textContent = `${r.dados.tamanho_dados_kb} KB`;
+  document.getElementById("s-versao").textContent  = r.dados.versao;
+})();
+</script>
+{% endblock %}
