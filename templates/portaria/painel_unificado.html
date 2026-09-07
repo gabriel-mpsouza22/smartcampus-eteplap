@@ -1,0 +1,705 @@
+{% extends "base.html" %}
+{% block titulo %}Painel do Porteiro{% endblock %}
+{% block topbar_titulo %}<svg class='icon'><use href='#i-grid'></use></svg> Painel do Porteiro{% endblock %}
+
+{% block estilos %}
+<style>
+  /* ── Resumo sempre visível — o porteiro enxerga os 3 números sem
+     precisar clicar em nada. Cada card também é atalho pra aba. ── */
+  .pu-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .pu-resumo-card {
+    background: var(--card); border: 1.5px solid var(--borda); border-radius: var(--raio-lg);
+    padding: 14px 18px; display: flex; align-items: center; gap: 12px; cursor: pointer;
+    transition: border-color .12s, background .12s; text-align: left;
+  }
+  .pu-resumo-card:hover { border-color: var(--texto-secundario); }
+  .pu-resumo-card.ativa { border-color: var(--laranja-solido, var(--laranja)); background: var(--sidebar-hover); }
+  .pu-resumo-card.alerta { border-color: var(--vermelho); background: var(--vermelho-claro); }
+  .pu-resumo-icone { width: 38px; height: 38px; border-radius: 10px; flex: none; display: flex; align-items: center; justify-content: center; background: var(--bg-fundo2); }
+  .pu-resumo-numero { font-family: var(--fonte-display); font-weight: 800; font-size: 1.5rem; line-height: 1; }
+  .pu-resumo-label { font-size: .76rem; color: var(--texto-secundario); margin-top: 2px; }
+
+  /* ── Seletor de aba — só uma tarefa ativa por vez, pra nunca dar
+     pra confundir "estou registrando o quê agora". ── */
+  .pu-abas { display: flex; gap: 6px; border-bottom: 2px solid var(--borda); margin-bottom: 20px; }
+  .pu-aba {
+    display: flex; align-items: center; gap: 8px; padding: 10px 18px; font-weight: 700; font-size: .88rem;
+    color: var(--texto-secundario); border: none; background: none; cursor: pointer;
+    border-bottom: 3px solid transparent; margin-bottom: -2px; transition: color .12s, border-color .12s;
+  }
+  .pu-aba:hover { color: var(--texto); }
+  .pu-aba.ativa { color: var(--texto); border-bottom-color: var(--laranja-solido, var(--laranja)); }
+  .pu-aba-contagem {
+    font-size: .72rem; font-weight: 800; padding: 1px 7px; border-radius: 999px;
+    background: var(--bg-fundo2); color: var(--texto-secundario); min-width: 20px; text-align: center;
+  }
+  .pu-aba.ativa .pu-aba-contagem { background: var(--laranja-solido, var(--laranja)); color: #fff; }
+  .pu-aba-contagem.alerta { background: var(--vermelho); color: #fff; }
+
+  .pu-painel { display: none; }
+  .pu-painel.ativo { display: block; }
+
+  /* ── Pontualidade (aba) ── */
+  .pt-wrap { max-width: 720px; margin: 0 auto; }
+  .pt-busca-caixa { position: relative; margin-bottom: 4px; }
+  .pt-busca-icone { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: var(--texto-mudo); pointer-events: none; }
+  .pt-busca-icone svg { width: 22px; height: 22px; }
+  #pt-busca { width: 100%; font-size: 1.35rem; font-weight: 600; padding: 20px 20px 20px 56px; border: 2px solid var(--borda-forte); border-radius: var(--raio-lg); background: var(--card); color: var(--texto); outline: none; transition: border-color .15s, box-shadow .15s; }
+  #pt-busca:focus { border-color: var(--azul); box-shadow: 0 0 0 4px var(--azul-claro); }
+  .pt-dica-atalho { text-align: center; font-size: .74rem; color: var(--texto-mudo); margin: 8px 0 22px; }
+  .pt-dica-atalho kbd { background: var(--bg-fundo2); border: 1px solid var(--borda-forte); border-radius: 5px; padding: 1px 6px; font-family: var(--fonte-mono); font-size: .7rem; }
+  .pt-resultados { display: flex; flex-direction: column; gap: 8px; }
+  .pt-resultado-item { display: flex; align-items: center; gap: 14px; padding: 14px 18px; background: var(--card); border: 1.5px solid var(--borda); border-radius: var(--raio-lg); cursor: pointer; transition: border-color .12s, background .12s; }
+  .pt-resultado-item:hover, .pt-resultado-item.selecionado { border-color: var(--azul); background: var(--azul-claro); }
+  .pt-resultado-avatar { width: 42px; height: 42px; border-radius: 50%; flex: none; background: var(--bg-fundo2); display: flex; align-items: center; justify-content: center; font-weight: 800; font-family: var(--fonte-display); color: var(--texto-secundario); }
+  .pt-resultado-nome { font-weight: 700; font-size: 1rem; }
+  .pt-resultado-info { font-size: .8rem; color: var(--texto-mudo); }
+  .pt-resultado-mat { font-family: var(--fonte-mono); }
+  .pt-resultado-historico { margin-left: auto; flex: none; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--texto-mudo); transition: background .12s, color .12s; text-decoration: none; }
+  .pt-resultado-historico:hover { background: var(--card); color: var(--texto); }
+  .pt-nao-encontrado { text-align: center; padding: 28px 20px; color: var(--texto-mudo); font-size: .9rem; }
+  .pt-nao-encontrado button { margin-top: 10px; }
+  .pt-feedback { display: none; align-items: center; gap: 16px; padding: 22px 26px; border-radius: var(--raio-lg); margin-bottom: 22px; animation: pt-entrar .2s ease; }
+  .pt-feedback.visivel { display: flex; }
+  .pt-feedback.normal { background: var(--verde-claro); border: 1.5px solid var(--verde); }
+  .pt-feedback.atraso, .pt-feedback.atraso_leve { background: var(--amarelo-claro); border: 1.5px solid var(--amarelo); }
+  .pt-feedback.atraso_grave { background: var(--vermelho-claro); border: 1.5px solid var(--vermelho); }
+  .pt-feedback-icone { width: 44px; height: 44px; flex: none; }
+  .pt-feedback.normal .pt-feedback-icone { color: var(--verde); }
+  .pt-feedback.atraso .pt-feedback-icone, .pt-feedback.atraso_leve .pt-feedback-icone { color: var(--amarelo); }
+  .pt-feedback.atraso_grave .pt-feedback-icone { color: var(--vermelho); }
+  .pt-feedback-nome { font-weight: 800; font-size: 1.1rem; font-family: var(--fonte-display); }
+  .pt-feedback-detalhe { font-size: .88rem; color: var(--texto-secundario); margin-top: 2px; }
+  .pt-feedback-hora { margin-left: auto; font-family: var(--fonte-mono); font-size: 1.5rem; font-weight: 700; flex: none; }
+  @keyframes pt-entrar { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+  .pt-cadastro-rapido { background: var(--card); border: 1.5px solid var(--borda-forte); border-radius: var(--raio-lg); padding: 20px; margin-top: 10px; }
+  .pt-cadastro-titulo { font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .pt-cadastro-aviso { font-size: .8rem; color: var(--texto-mudo); margin-bottom: 16px; }
+  .pt-campo-linha { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .pt-campo-linha input, .pt-campo-linha select { padding: 11px 14px; border: 1.5px solid var(--borda-forte); border-radius: 10px; font-size: .92rem; background: var(--fundo); color: var(--texto); }
+  .pt-cadastro-acoes { display: flex; gap: 8px; margin-top: 14px; }
+
+  /* ── Saídas (aba) — prefixo "sd-" pra não colidir com "pt-" ── */
+  .sd-fila { display: flex; flex-direction: column; gap: 10px; max-width: 760px; }
+  .sd-item { background: var(--card); border: 1px solid var(--borda); border-left: 5px solid var(--verde); border-radius: var(--raio-lg); padding: 16px 18px; display: flex; align-items: center; gap: 16px; }
+  .sd-item.atrasado { border-left-color: #E76F51; }
+  .sd-hora { font-family: var(--fonte-mono); font-weight: 800; font-size: 1.3rem; min-width: 62px; }
+  .sd-info { flex: 1; }
+  .sd-nome { font-weight: 800; font-size: 1.05rem; }
+  .sd-meta { font-size: .82rem; color: var(--texto-secundario); }
+  .sd-atraso { font-size: .74rem; font-weight: 700; color: #E76F51; margin-top: 2px; }
+  .sd-concluidas { opacity: .55; }
+  .sd-concluidas .sd-item { border-left-color: var(--texto-mudo); }
+  .sd-secao-titulo { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--texto-secundario); margin: 24px 0 10px; }
+  .sd-secao-titulo:first-child { margin-top: 0; }
+
+  /* ── Visitantes (aba) ── */
+  .vs-layout { display: grid; grid-template-columns: 380px 1fr; gap: 20px; align-items: start; }
+  .vs-card { background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio-lg); padding: 18px; }
+  .vs-campo { margin-top: 14px; }
+  .vs-campo label { display:block; font-size: .78rem; font-weight: 700; color: var(--texto-secundario); margin-bottom: 4px; }
+  .vs-campo input, .vs-campo select { width: 100%; padding: 10px 12px; border: 1px solid var(--borda-forte); border-radius: var(--raio); font-size: .9rem; }
+  .vs-campo:first-child { margin-top: 0; }
+  .vs-busca-wrap { position: relative; }
+  .vs-resultados { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: 0 8px 24px rgba(0,0,0,.12); z-index: 20; max-height: 220px; overflow-y: auto; }
+  .vs-resultado-item { padding: 10px 12px; cursor: pointer; }
+  .vs-resultado-item:hover { background: var(--fundo); }
+  .vs-resultado-nome { font-weight: 700; font-size: .86rem; display: flex; align-items: center; gap: 6px; }
+  .vs-resultado-meta { font-size: .74rem; color: var(--texto-secundario); }
+  .vs-motivos { display: flex; flex-wrap: wrap; gap: 6px; }
+  .vs-motivo-chip { padding: 8px 12px; border: 1px solid var(--borda-forte); border-radius: 999px; font-size: .82rem; cursor: pointer; background: var(--fundo); }
+  .vs-motivo-chip.ativo { background: var(--azul); color: #fff; border-color: var(--azul); font-weight: 700; }
+  .vs-adicionais summary { cursor: pointer; font-size: .8rem; font-weight: 700; color: var(--texto-secundario); margin-top: 12px; }
+  .vs-recorrente { margin-top: 10px; padding: 8px 12px; background: var(--fundo); border-radius: var(--raio); font-size: .78rem; color: var(--texto-secundario); display: flex; align-items: center; gap: 6px; }
+  .vs-alerta-duplicidade { margin-top: 10px; padding: 10px 12px; border-radius: var(--raio); background: #E76F5122; border: 1px solid #E76F51; font-size: .82rem; }
+  .vs-alerta-duplicidade button { margin-top: 6px; }
+  .vs-resumo { font-size: .86rem; color: var(--texto-secundario); margin-bottom: 12px; }
+  .vs-resumo b { color: var(--texto); font-size: 1.1rem; }
+  .vs-lista { display: flex; flex-direction: column; gap: 8px; }
+  .vs-item { background: var(--card); border: 1px solid var(--borda); border-left: 4px solid var(--verde); border-radius: var(--raio); padding: 12px 16px; display: flex; align-items: center; gap: 14px; }
+  .vs-item-hora { font-family: var(--fonte-mono); font-weight: 700; min-width: 50px; }
+  .vs-item-info { flex: 1; }
+  .vs-item-nome { font-weight: 700; font-size: .92rem; }
+  .vs-item-meta { font-size: .78rem; color: var(--texto-secundario); }
+  .vs-item-permanencia { font-size: .74rem; color: var(--texto-mudo); }
+  .vs-confirmacao { text-align: center; padding: 22px; }
+  .vs-confirmacao .icone-ok { color: var(--verde); }
+  .vs-confirmacao .titulo { font-weight: 800; font-size: 1.05rem; margin-top: 8px; }
+  .vs-confirmacao .detalhe { font-size: .84rem; color: var(--texto-secundario); margin-top: 4px; }
+
+  @media (max-width: 860px) {
+    .vs-layout { grid-template-columns: 1fr; }
+    .pu-abas { overflow-x: auto; }
+  }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+
+<div class="pu-resumo" id="pu-resumo">
+  {% if abas.pontualidade %}
+  <button class="pu-resumo-card" id="pu-resumo-pontualidade" onclick="puIrPara('pontualidade')" type="button">
+    <div class="pu-resumo-icone"><svg class="icon"><use href="#i-clock"></use></svg></div>
+    <div>
+      <div class="pu-resumo-numero" id="pu-num-atrasos">—</div>
+      <div class="pu-resumo-label">Atrasos hoje</div>
+    </div>
+  </button>
+  {% endif %}
+  {% if abas.saidas %}
+  <button class="pu-resumo-card" id="pu-resumo-saidas" onclick="puIrPara('saidas')" type="button">
+    <div class="pu-resumo-icone"><svg class="icon"><use href="#i-door"></use></svg></div>
+    <div>
+      <div class="pu-resumo-numero" id="pu-num-saidas">—</div>
+      <div class="pu-resumo-label">Aguardando saída</div>
+    </div>
+  </button>
+  {% endif %}
+  {% if abas.visitantes %}
+  <button class="pu-resumo-card" id="pu-resumo-visitantes" onclick="puIrPara('visitantes')" type="button">
+    <div class="pu-resumo-icone"><svg class="icon"><use href="#i-users"></use></svg></div>
+    <div>
+      <div class="pu-resumo-numero" id="pu-num-visitantes">—</div>
+      <div class="pu-resumo-label">Visitantes no campus</div>
+    </div>
+  </button>
+  {% endif %}
+</div>
+
+<div class="pu-abas" role="tablist">
+  {% if abas.pontualidade %}
+  <button class="pu-aba" id="pu-aba-pontualidade" role="tab" onclick="puIrPara('pontualidade')" type="button">
+    <svg class="icon" style="width:16px;height:16px;"><use href="#i-clock"></use></svg>
+    Pontualidade
+  </button>
+  {% endif %}
+  {% if abas.saidas %}
+  <button class="pu-aba" id="pu-aba-saidas" role="tab" onclick="puIrPara('saidas')" type="button">
+    <svg class="icon" style="width:16px;height:16px;"><use href="#i-door"></use></svg>
+    Saídas de Alunos
+    <span class="pu-aba-contagem" id="pu-aba-contagem-saidas">0</span>
+  </button>
+  {% endif %}
+  {% if abas.visitantes %}
+  <button class="pu-aba" id="pu-aba-visitantes" role="tab" onclick="puIrPara('visitantes')" type="button">
+    <svg class="icon" style="width:16px;height:16px;"><use href="#i-users"></use></svg>
+    Visitantes
+    <span class="pu-aba-contagem" id="pu-aba-contagem-visitantes">0</span>
+  </button>
+  {% endif %}
+</div>
+
+{% if abas.pontualidade %}
+<div class="pu-painel" id="pu-painel-pontualidade">
+  <div class="pt-wrap">
+    <div class="pt-feedback" id="pt-feedback">
+      <svg class="pt-feedback-icone icon"><use id="pt-feedback-icone-uso" href="#i-check-circle"></use></svg>
+      <div>
+        <div class="pt-feedback-nome" id="pt-feedback-nome"></div>
+        <div class="pt-feedback-detalhe" id="pt-feedback-detalhe"></div>
+      </div>
+      <div class="pt-feedback-hora" id="pt-feedback-hora"></div>
+    </div>
+    <div class="pt-busca-caixa">
+      <span class="pt-busca-icone"><svg class="icon"><use href="#i-search"></use></svg></span>
+      <input type="text" id="pt-busca" placeholder="Digite o nome ou matrícula..." autocomplete="off">
+    </div>
+    <div class="pt-dica-atalho"><kbd>F2</kbd> focar busca · <kbd>Enter</kbd> selecionar primeiro · <kbd>Esc</kbd> limpar</div>
+    <div class="pt-resultados" id="pt-resultados"></div>
+  </div>
+</div>
+{% endif %}
+
+{% if abas.saidas %}
+<div class="pu-painel" id="pu-painel-saidas">
+  <div class="flex justify-between items-center mb-16">
+    <span class="secao-titulo" style="font-size:1rem;margin:0;">Quem pode sair agora</span>
+    <button class="btn btn-secundario btn-sm" onclick="SD.carregar()"><svg class='icon'><use href='#i-refresh'></use></svg> Atualizar</button>
+  </div>
+  <div class="sd-secao-titulo">Autorizadas</div>
+  <div class="sd-fila" id="sd-autorizadas"><div class="estado-vazio">Carregando…</div></div>
+  <div class="sd-secao-titulo">Concluídas hoje</div>
+  <div class="sd-fila sd-concluidas" id="sd-concluidas"></div>
+</div>
+{% endif %}
+
+{% if abas.visitantes %}
+<div class="pu-painel" id="pu-painel-visitantes">
+  <div class="vs-layout">
+    <div class="vs-card">
+      <div id="vs-form-wrap">
+        <div class="secao-titulo" style="font-size:1rem;">Nova visita</div>
+        <div class="vs-campo vs-busca-wrap">
+          <label>Nome do visitante</label>
+          <input type="text" id="vs-nome" placeholder="Digite o nome..." autocomplete="off">
+          <div class="vs-resultados" id="vs-resultados" style="display:none;"></div>
+        </div>
+        <div id="vs-recorrente-wrap"></div>
+        <div id="vs-duplicidade-wrap"></div>
+        <div class="vs-campo">
+          <label>Quem deseja visitar?</label>
+          <select id="vs-destino">
+            <option value="">Selecionar setor/pessoa...</option>
+            {% for d in (destinos or []) %}
+            <option value="{{ d }}">{{ d }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="vs-campo">
+          <label>Motivo da visita</label>
+          <div class="vs-motivos" id="vs-motivos">
+            {% for m in (motivos or []) %}
+            <div class="vs-motivo-chip" data-motivo="{{ m.id }}" onclick="VS.selecionarMotivo('{{ m.id }}')">{{ m.label }}</div>
+            {% endfor %}
+          </div>
+          <input type="text" id="vs-motivo-detalhe" placeholder="Descreva brevemente o motivo..." style="display:none; margin-top:8px;">
+        </div>
+        <details class="vs-adicionais">
+          <summary>+ Informações adicionais</summary>
+          <div class="vs-campo"><label>Documento / identificação (opcional)</label><input type="text" id="vs-documento" placeholder="Opcional"></div>
+          <div class="vs-campo"><label>Observação (opcional)</label><input type="text" id="vs-observacao" maxlength="200" placeholder="Opcional"></div>
+        </details>
+        <div style="margin-top:18px;">
+          <button class="btn btn-primario" id="btn-registrar-visita" onclick="VS.registrarEntrada()" style="width:100%; padding:12px;">
+            <svg class='icon'><use href='#i-check'></use></svg> Registrar entrada
+          </button>
+        </div>
+      </div>
+      <div id="vs-confirmacao-wrap" style="display:none;"></div>
+    </div>
+    <div>
+      <div class="vs-resumo"><b id="vs-total-campus">0</b> visitantes atualmente no campus</div>
+      <div class="flex justify-between items-center mb-16">
+        <span class="secao-titulo" style="font-size:1rem;margin:0;">No campus agora</span>
+        <button class="btn btn-secundario btn-sm" onclick="VS.carregarLista()"><svg class='icon'><use href='#i-refresh'></use></svg> Atualizar</button>
+      </div>
+      <div class="vs-lista" id="vs-lista"><div class="estado-vazio">Carregando…</div></div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PU_ABAS = {{ abas | tojson }};
+const PU_ORDEM = ["pontualidade", "saidas", "visitantes"].filter(a => PU_ABAS[a]);
+const TURMAS = {{ turmas | tojson }};
+const HOJE = "{{ hoje }}";
+
+// ──────────────────────────────────────────────────────────────
+// Controle de abas — só um painel fica interativo por vez, de
+// propósito: evita o erro de "cliquei no botão errado achando que
+// estava em outra aba". O resumo do topo continua sempre visível e
+// atualizado, independente de qual aba está aberta.
+// ──────────────────────────────────────────────────────────────
+function puIrPara(aba) {
+  PU_ORDEM.forEach(a => {
+    document.getElementById(`pu-aba-${a}`)?.classList.toggle("ativa", a === aba);
+    document.getElementById(`pu-resumo-${a}`)?.classList.toggle("ativa", a === aba);
+    document.getElementById(`pu-painel-${a}`)?.classList.toggle("ativo", a === aba);
+  });
+  if (aba === "pontualidade") document.getElementById("pt-busca")?.focus();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  if (PU_ORDEM.length) puIrPara(PU_ORDEM[0]);
+  if (PU_ABAS.pontualidade) { PT.iniciar(); atualizarResumoPontualidade(); setInterval(atualizarResumoPontualidade, 20000); }
+  if (PU_ABAS.saidas) { SD.carregar(); setInterval(SD.carregar, 8000); }
+  if (PU_ABAS.visitantes) { VS.carregarLista(); setInterval(VS.carregarLista, 10000); }
+});
+
+async function atualizarResumoPontualidade() {
+  const r = await api("get", "/pontualidade/api/resumo-hoje");
+  if (!r.ok) return;
+  const el = document.getElementById("pu-num-atrasos");
+  if (el) el.textContent = r.dados.atrasos_hoje;
+}
+
+// ──────────────────────────────────────────────────────────────
+// Pontualidade
+// ──────────────────────────────────────────────────────────────
+const PT = (() => {
+  let resultadosAtuais = [];
+  let indiceSelecionado = -1;
+  let timerBusca = null;
+  let campoBusca;
+
+  function iniciar() {
+    campoBusca = document.getElementById("pt-busca");
+    campoBusca.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") { campoBusca.value = ""; renderizarResultados([]); return; }
+      if (e.key === "ArrowDown") { e.preventDefault(); moverSelecao(1); return; }
+      if (e.key === "ArrowUp") { e.preventDefault(); moverSelecao(-1); return; }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const alvo = indiceSelecionado >= 0 ? resultadosAtuais[indiceSelecionado] : resultadosAtuais[0];
+        if (alvo) registrarEntrada(alvo);
+      }
+    });
+    campoBusca.addEventListener("input", () => {
+      clearTimeout(timerBusca);
+      const termo = campoBusca.value.trim();
+      if (termo.length < 2) { renderizarResultados([]); return; }
+      timerBusca = setTimeout(() => buscar(termo), 150);
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "F2") { e.preventDefault(); puIrPara("pontualidade"); campoBusca.focus(); campoBusca.select(); }
+    });
+  }
+
+  async function buscar(termo) {
+    const r = await api("get", `/pontualidade/api/buscar?q=${encodeURIComponent(termo)}`);
+    if (!r.ok) return;
+    resultadosAtuais = r.dados;
+    indiceSelecionado = -1;
+    renderizarResultados(r.dados, termo);
+  }
+
+  function moverSelecao(delta) {
+    if (resultadosAtuais.length === 0) return;
+    indiceSelecionado = Math.max(0, Math.min(resultadosAtuais.length - 1, indiceSelecionado + delta));
+    document.querySelectorAll(".pt-resultado-item").forEach((el, i) => el.classList.toggle("selecionado", i === indiceSelecionado));
+  }
+
+  function iniciais(nome) {
+    const partes = nome.trim().split(/\s+/);
+    return ((partes[0]?.[0] || "") + (partes[partes.length - 1]?.[0] || "")).toUpperCase();
+  }
+
+  function renderizarResultados(alunos, termoOriginal) {
+    const container = document.getElementById("pt-resultados");
+    if (!termoOriginal) { container.innerHTML = ""; return; }
+    if (alunos.length === 0) {
+      container.innerHTML = `
+        <div class="pt-nao-encontrado">
+          <svg class="icon" style="width:32px;height:32px;opacity:.5;"><use href="#i-inbox"></use></svg>
+          <div style="margin-top:8px;">Nenhum aluno encontrado para "${termoOriginal}".</div>
+          <div style="font-size:.78rem;margin:4px 0 4px;">Verifique se o aluno já possui cadastro antes de criar um novo.</div>
+          <button class="btn btn-secundario btn-sm" onclick="PT.abrirCadastroRapido('${termoOriginal.replace(/'/g, "\\'")}')">
+            <svg class='icon'><use href='#i-plus'></use></svg> Cadastrar aluno
+          </button>
+        </div>`;
+      return;
+    }
+    container.innerHTML = alunos.map((a) => `
+      <div class="pt-resultado-item" onclick='PT.registrarEntrada(${JSON.stringify(a)})'>
+        <div class="pt-resultado-avatar">${iniciais(a.nome)}</div>
+        <div>
+          <div class="pt-resultado-nome">${a.nome}</div>
+          <div class="pt-resultado-info">${a.turma}${a.matricula ? ` · <span class="pt-resultado-mat">Matrícula ${a.matricula}</span>` : ""}</div>
+        </div>
+        <a class="pt-resultado-historico" href="/pontualidade/aluno/${a.id}" title="Ver histórico" onclick="event.stopPropagation()">
+          <svg class='icon' style="width:16px;height:16px;"><use href='#i-clock'></use></svg>
+        </a>
+      </div>`).join("");
+  }
+
+  async function registrarEntrada(aluno) {
+    const r = await api("post", "/pontualidade/api/registrar", { aluno_id: aluno.id });
+    if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao registrar entrada.", "erro"); return; }
+    mostrarFeedback(aluno.nome, r.dados.evento);
+    limparParaProximo();
+    atualizarResumoPontualidade();
+  }
+
+  function mostrarFeedback(nome, evento) {
+    const box = document.getElementById("pt-feedback");
+    box.className = `pt-feedback visivel ${evento.status}`;
+    document.getElementById("pt-feedback-icone-uso").setAttribute("href", evento.status === "normal" ? "#i-check-circle" : "#i-warning");
+    document.getElementById("pt-feedback-nome").textContent = nome;
+    document.getElementById("pt-feedback-detalhe").textContent = evento.status_label;
+    document.getElementById("pt-feedback-hora").textContent = evento.horario;
+    clearTimeout(window._pt_timer_feedback);
+    window._pt_timer_feedback = setTimeout(() => box.classList.remove("visivel"), 6000);
+  }
+
+  function limparParaProximo() {
+    campoBusca.value = "";
+    resultadosAtuais = [];
+    indiceSelecionado = -1;
+    document.getElementById("pt-resultados").innerHTML = "";
+    campoBusca.focus();
+  }
+
+  function abrirCadastroRapido(nomeSugerido) {
+    const container = document.getElementById("pt-resultados");
+    container.innerHTML = `
+      <div class="pt-cadastro-rapido">
+        <div class="pt-cadastro-titulo"><svg class='icon'><use href='#i-plus'></use></svg> Cadastrar aluno</div>
+        <div class="pt-cadastro-aviso">Só o essencial — o cadastro pode ser completado depois pela secretaria.</div>
+        <div class="pt-campo-linha">
+          <input type="text" id="pt-novo-nome" placeholder="Nome completo" value="${nomeSugerido.replace(/"/g, "&quot;")}">
+          <input type="text" id="pt-novo-matricula" placeholder="Matrícula (opcional)">
+        </div>
+        <div class="pt-campo-linha" style="grid-template-columns:1fr;">
+          <select id="pt-novo-turma">
+            <option value="">Selecione a turma...</option>
+            ${TURMAS.map(t => `<option value="${t.turma}">${t.turma} — ${t.serie} · ${t.curso}</option>`).join("")}
+          </select>
+        </div>
+        <div class="pt-cadastro-acoes">
+          <button class="btn btn-primario" id="btn-cadastrar-registrar" onclick="PT.cadastrarERegistrar()">
+            <svg class='icon'><use href='#i-check'></use></svg> Cadastrar e registrar entrada
+          </button>
+          <button class="btn btn-secundario" onclick="PT.limparParaProximo()">Cancelar</button>
+        </div>
+      </div>`;
+    setTimeout(() => {
+      const campoTurma = document.getElementById("pt-novo-turma");
+      if (!document.getElementById("pt-novo-nome").value) document.getElementById("pt-novo-nome").focus();
+      else campoTurma.focus();
+    }, 30);
+  }
+
+  async function cadastrarERegistrar() {
+    const nome = document.getElementById("pt-novo-nome").value.trim();
+    const matricula = document.getElementById("pt-novo-matricula").value.trim();
+    const turma = document.getElementById("pt-novo-turma").value;
+    if (!nome || !turma) { mostrarAlerta("Preencha o nome e selecione a turma.", "aviso"); return; }
+    mostrarSpinner("btn-cadastrar-registrar");
+    const r = await api("post", "/pontualidade/api/registrar-novo", { nome, matricula, turma });
+    ocultarSpinner("btn-cadastrar-registrar");
+    if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao cadastrar.", "erro"); return; }
+    mostrarFeedback(nome, r.dados.evento);
+    limparParaProximo();
+    atualizarResumoPontualidade();
+  }
+
+  return { iniciar, registrarEntrada, abrirCadastroRapido, cadastrarERegistrar, limparParaProximo };
+})();
+
+// ──────────────────────────────────────────────────────────────
+// Saídas de Alunos
+// ──────────────────────────────────────────────────────────────
+const SD = (() => {
+  function minutosAtraso(horario) {
+    const [h, m] = horario.split(":").map(Number);
+    const alvo = new Date(); alvo.setHours(h, m, 0, 0);
+    return Math.round((new Date() - alvo) / 60000);
+  }
+
+  async function carregar() {
+    const r = await api("get", `/saidas/api/autorizacoes?data=${HOJE}`);
+    if (!r.ok) return;
+
+    const autorizadas = r.dados.filter(a => a.status === "autorizada")
+      .sort((a, b) => minutosAtraso(b.horario_previsto) - minutosAtraso(a.horario_previsto));
+    const concluidas = r.dados.filter(a => a.status === "saida_registrada");
+    const atrasadas = autorizadas.filter(a => minutosAtraso(a.horario_previsto) > 0).length;
+
+    const contagem = document.getElementById("pu-aba-contagem-saidas");
+    if (contagem) { contagem.textContent = autorizadas.length; contagem.classList.toggle("alerta", atrasadas > 0); }
+    const numResumo = document.getElementById("pu-num-saidas");
+    if (numResumo) numResumo.textContent = autorizadas.length;
+    document.getElementById("pu-resumo-saidas")?.classList.toggle("alerta", atrasadas > 0);
+
+    const boxA = document.getElementById("sd-autorizadas");
+    boxA.innerHTML = autorizadas.length ? autorizadas.map(a => {
+      const atraso = minutosAtraso(a.horario_previsto);
+      const atrasado = atraso > 0;
+      return `
+      <div class="sd-item ${atrasado ? 'atrasado' : ''}">
+        <div class="sd-hora">${a.horario_previsto}</div>
+        <div class="sd-info">
+          <div class="sd-nome">${a.aluno_nome}</div>
+          <div class="sd-meta">${a.aluno_turma} · ${a.motivo_label}${a.responsavel_nome ? " · Retirado por: " + a.responsavel_nome : ""}</div>
+          <div class="sd-meta">Autorizado por: ${a.autorizado_por || "—"}</div>
+          ${atrasado ? `<div class="sd-atraso">Aguardando saída há ${atraso} min</div>` : ""}
+        </div>
+        <button class="btn btn-primario" id="btn-saida-${a.id}" onclick="SD.registrarSaida(${a.id})">
+          <svg class='icon'><use href='#i-check'></use></svg> Registrar saída
+        </button>
+      </div>`;
+    }).join("") : `<div class="estado-vazio"><svg class='icon'><use href='#i-inbox'></use></svg> Ninguém autorizado a sair no momento.</div>`;
+
+    document.getElementById("sd-concluidas").innerHTML = concluidas.map(a => `
+      <div class="sd-item">
+        <div class="sd-hora">${(a.saida_registrada_em || "").slice(11,16)}</div>
+        <div class="sd-info">
+          <div class="sd-nome">${a.aluno_nome}</div>
+          <div class="sd-meta">${a.aluno_turma} · registrado por ${a.saida_registrada_por}</div>
+          <div class="sd-meta">Autorizado por: ${a.autorizado_por || "—"}</div>
+        </div>
+      </div>`).join("");
+  }
+
+  async function registrarSaida(id) {
+    mostrarSpinner(`btn-saida-${id}`);
+    const r = await api("post", `/saidas/api/autorizacoes/${id}/registrar-saida`);
+    if (r.ok) {
+      mostrarAlerta(`✓ Saída registrada às ${r.dados.horario.slice(11,16)}.`, "sucesso");
+      carregar();
+    } else {
+      ocultarSpinner(`btn-saida-${id}`);
+      mostrarAlerta(r.dados?.erro || "Erro ao registrar saída.", "erro");
+      carregar();
+    }
+  }
+
+  return { carregar, registrarSaida };
+})();
+
+// ──────────────────────────────────────────────────────────────
+// Visitantes
+// ──────────────────────────────────────────────────────────────
+const VS = (() => {
+  let motivoSelecionado = null;
+
+  document.addEventListener("DOMContentLoaded", () => {
+    if (!PU_ABAS.visitantes) return;
+    const input = document.getElementById("vs-nome");
+    let timer = null;
+    input.addEventListener("input", () => {
+      document.getElementById("vs-duplicidade-wrap").innerHTML = "";
+      document.getElementById("vs-recorrente-wrap").innerHTML = "";
+      clearTimeout(timer);
+      timer = setTimeout(() => buscarVisitante(input.value.trim()), 220);
+    });
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".vs-busca-wrap")) document.getElementById("vs-resultados").style.display = "none";
+    });
+  });
+
+  function selecionarMotivo(id) {
+    motivoSelecionado = id;
+    document.querySelectorAll(".vs-motivo-chip").forEach(c => c.classList.toggle("ativo", c.dataset.motivo === id));
+    document.getElementById("vs-motivo-detalhe").style.display = id === "outro" ? "block" : "none";
+  }
+
+  async function buscarVisitante(termo) {
+    const caixa = document.getElementById("vs-resultados");
+    if (termo.length < 2) { caixa.style.display = "none"; return; }
+    const r = await api("get", `/visitantes/api/visitantes/buscar?q=${encodeURIComponent(termo)}`);
+    if (!r.ok || r.dados.length === 0) { caixa.style.display = "none"; return; }
+    caixa.innerHTML = r.dados.map(v => `
+      <div class="vs-resultado-item" onclick='VS.usarNomeRecorrente(${JSON.stringify(v).replace(/'/g, "&#39;")})'>
+        <div class="vs-resultado-nome"><svg class='icon' style="width:14px;height:14px;"><use href='#i-user'></use></svg> ${v.nome}</div>
+        <div class="vs-resultado-meta">${v.visitas_anteriores} visita(s) · última: ${formatarData(v.ultima_visita)}${v.tem_visita_ativa ? " · já está no campus" : ""}</div>
+      </div>`).join("");
+    caixa.style.display = "block";
+  }
+
+  function usarNomeRecorrente(v) {
+    document.getElementById("vs-nome").value = v.nome;
+    document.getElementById("vs-resultados").style.display = "none";
+    document.getElementById("vs-recorrente-wrap").innerHTML = `
+      <div class="vs-recorrente"><svg class='icon' style="width:14px;height:14px;"><use href='#i-info'></use></svg>
+        Visitante recorrente — última visita: ${formatarData(v.ultima_visita)}, ${v.visitas_anteriores} visita(s) anteriores.</div>`;
+    if (v.tem_visita_ativa) {
+      document.getElementById("vs-duplicidade-wrap").innerHTML = `<div class="vs-alerta-duplicidade">Este visitante já possui uma entrada ativa no campus.</div>`;
+    }
+  }
+
+  async function registrarEntrada() {
+    const nome = document.getElementById("vs-nome").value.trim();
+    const destino = document.getElementById("vs-destino").value;
+    if (!nome) { mostrarAlerta("Digite o nome do visitante.", "aviso"); document.getElementById("vs-nome").focus(); return; }
+    if (!destino) { mostrarAlerta("Selecione quem o visitante deseja visitar.", "aviso"); return; }
+    if (!motivoSelecionado) { mostrarAlerta("Selecione o motivo da visita.", "aviso"); return; }
+
+    mostrarSpinner("btn-registrar-visita");
+    const r = await api("post", "/visitantes/api/visitas", {
+      nome, destino, motivo: motivoSelecionado,
+      motivo_detalhe: document.getElementById("vs-motivo-detalhe").value.trim(),
+      documento: document.getElementById("vs-documento").value.trim(),
+      observacao: document.getElementById("vs-observacao").value.trim(),
+    });
+    ocultarSpinner("btn-registrar-visita");
+
+    if (!r.ok) {
+      if (r.dados?.visita_ativa) {
+        const va = r.dados.visita_ativa;
+        document.getElementById("vs-duplicidade-wrap").innerHTML = `
+          <div class="vs-alerta-duplicidade">${r.dados.erro}
+            <div class="vs-item-meta" style="margin-top:4px;">Destino: ${va.destino} · entrada às ${va.entrada_em.slice(11,16)} · permanência: ${va.permanencia_label}</div>
+          </div>`;
+      } else {
+        mostrarAlerta(r.dados?.erro || "Erro ao registrar entrada.", "erro");
+      }
+      return;
+    }
+    mostrarConfirmacaoEntrada(r.dados.visita);
+    carregarLista();
+  }
+
+  function mostrarConfirmacaoEntrada(v) {
+    document.getElementById("vs-form-wrap").style.display = "none";
+    const wrap = document.getElementById("vs-confirmacao-wrap");
+    wrap.style.display = "block";
+    wrap.innerHTML = `
+      <div class="vs-confirmacao">
+        <svg class="icon icone-ok" style="width:40px;height:40px;"><use href='#i-check-circle'></use></svg>
+        <div class="titulo">Entrada registrada</div>
+        <div class="detalhe">${v.visitante_nome}</div>
+        <div class="detalhe">Destino: ${v.destino}</div>
+        <div class="detalhe">${v.entrada_em.slice(11,16)}</div>
+        <button class="btn btn-primario" style="margin-top:16px;" onclick="VS.novaVisita()">
+          <svg class='icon'><use href='#i-plus'></use></svg> Nova visita
+        </button>
+      </div>`;
+  }
+
+  function novaVisita() {
+    document.getElementById("vs-confirmacao-wrap").style.display = "none";
+    document.getElementById("vs-confirmacao-wrap").innerHTML = "";
+    document.getElementById("vs-form-wrap").style.display = "block";
+    document.getElementById("vs-nome").value = "";
+    document.getElementById("vs-destino").value = "";
+    document.getElementById("vs-motivo-detalhe").value = "";
+    document.getElementById("vs-motivo-detalhe").style.display = "none";
+    document.getElementById("vs-documento").value = "";
+    document.getElementById("vs-observacao").value = "";
+    document.getElementById("vs-duplicidade-wrap").innerHTML = "";
+    document.getElementById("vs-recorrente-wrap").innerHTML = "";
+    motivoSelecionado = null;
+    document.querySelectorAll(".vs-motivo-chip").forEach(c => c.classList.remove("ativo"));
+    document.getElementById("vs-nome").focus();
+  }
+
+  async function carregarLista() {
+    const r = await api("get", "/visitantes/api/visitas?status=no_campus");
+    if (!r.ok) return;
+    document.getElementById("vs-total-campus").textContent = r.dados.length;
+    const numResumo = document.getElementById("pu-num-visitantes");
+    if (numResumo) numResumo.textContent = r.dados.length;
+    const contagem = document.getElementById("pu-aba-contagem-visitantes");
+    if (contagem) contagem.textContent = r.dados.length;
+
+    const caixa = document.getElementById("vs-lista");
+    if (r.dados.length === 0) {
+      caixa.innerHTML = `<div class="estado-vazio"><svg class='icon'><use href='#i-inbox'></use></svg> Nenhum visitante no campus.</div>`;
+      return;
+    }
+    caixa.innerHTML = r.dados.map(v => `
+      <div class="vs-item">
+        <div class="vs-item-hora">${v.entrada_em.slice(11,16)}</div>
+        <div class="vs-item-info">
+          <div class="vs-item-nome">${v.visitante_nome}</div>
+          <div class="vs-item-meta">${v.destino} · ${v.motivo_label}</div>
+          <div class="vs-item-permanencia">Permanência: ${v.permanencia_label}</div>
+        </div>
+        <button class="btn btn-secundario btn-sm" id="btn-vs-saida-${v.id}" onclick="VS.registrarSaida(${v.id})">
+          <svg class='icon'><use href='#i-close'></use></svg> Registrar saída
+        </button>
+      </div>`).join("");
+  }
+
+  async function registrarSaida(id) {
+    mostrarSpinner(`btn-vs-saida-${id}`);
+    const r = await api("post", `/visitantes/api/visitas/${id}/saida`);
+    if (r.ok) {
+      mostrarAlerta(`✓ Saída registrada às ${r.dados.visita.saida_em.slice(11,16)}. Permanência: ${r.dados.visita.permanencia_label}.`, "sucesso");
+      carregarLista();
+    } else {
+      ocultarSpinner(`btn-vs-saida-${id}`);
+      mostrarAlerta(r.dados?.erro || "Erro ao registrar saída.", "erro");
+      carregarLista();
+    }
+  }
+
+  return { selecionarMotivo, usarNomeRecorrente, registrarEntrada, novaVisita, carregarLista, registrarSaida };
+})();
+</script>
+{% endblock %}
