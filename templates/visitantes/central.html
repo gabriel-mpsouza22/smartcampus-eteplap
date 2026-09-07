@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block titulo %}Visitantes{% endblock %}
+{% block topbar_titulo %}<svg class='icon'><use href='#i-users'></use></svg> Visitantes{% endblock %}
+
+{% block estilos %}
+<style>
+.vc-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.vc-card { background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio-lg); padding: 14px 16px; }
+.vc-card .num { font-size: 1.7rem; font-weight: 800; }
+.vc-card .lbl { font-size: .76rem; color: var(--texto-secundario); margin-top: 2px; }
+
+.vc-alertas { margin-bottom: 20px; }
+.vc-alerta-item { background: var(--amarelo-claro); border: 1px solid var(--amarelo); border-radius: var(--raio); padding: 10px 14px; margin-bottom: 6px; font-size: .84rem; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+
+.vc-filtros { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.vc-chip { padding: 6px 12px; border: 1px solid var(--borda-forte); border-radius: 999px; font-size: .8rem; cursor: pointer; background: var(--fundo); }
+.vc-chip.ativo { background: var(--azul); color: #10151f; border-color: var(--azul); font-weight: 700; }
+.vc-filtros select, .vc-filtros input { padding: 7px 10px; border: 1px solid var(--borda-forte); border-radius: var(--raio); font-size: .82rem; background: var(--card); color: var(--texto); }
+.vc-filtros input[type=text] { min-width: 200px; }
+
+.vc-lista { display: flex; flex-direction: column; gap: 8px; }
+.vc-item { background: var(--card); border: 1px solid var(--borda); border-left: 4px solid var(--verde); border-radius: var(--raio); padding: 12px 16px; display: flex; align-items: center; gap: 14px; cursor: pointer; }
+.vc-item.finalizada { border-left-color: var(--texto-mudo); }
+.vc-item:hover { border-color: var(--borda-forte); }
+.vc-item-hora { font-family: var(--fonte-mono); font-weight: 700; min-width: 50px; font-size: .86rem; }
+.vc-item-info { flex: 1; min-width: 0; }
+.vc-item-nome { font-weight: 700; font-size: .92rem; display:flex; align-items:center; gap:6px; }
+.vc-item-meta { font-size: .78rem; color: var(--texto-secundario); }
+.vc-badge-status { font-size: .68rem; font-weight: 700; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; background: var(--fundo); white-space: nowrap; }
+.vc-badge-status.campus { color: var(--verde); }
+.vc-badge-recorrente { font-size: .68rem; color: var(--azul); }
+
+.vc-drawer-fundo { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 40; display:none; }
+.vc-drawer { position: fixed; top:0; right:0; bottom:0; width: 420px; max-width: 92vw; background: var(--card);
+  border-left: 1px solid var(--borda); z-index: 41; overflow-y: auto; padding: 22px; transform: translateX(100%);
+  transition: transform .2s ease; }
+.vc-drawer-fundo.aberto { display: block; }
+.vc-drawer-fundo.aberto .vc-drawer { transform: translateX(0); }
+.vc-drawer-fechar { position: absolute; top: 16px; right: 16px; cursor: pointer; }
+.vc-drawer h3 { font-size: 1.05rem; font-weight: 800; margin-bottom: 4px; }
+.vc-drawer .status-linha { font-size: .84rem; color: var(--texto-secundario); margin-bottom: 16px; }
+.vc-drawer .secao { margin-top: 18px; }
+.vc-drawer .secao-label { font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--texto-secundario); margin-bottom: 8px; }
+.vc-detalhe-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: .84rem; }
+.vc-detalhe-grid div span { display:block; color: var(--texto-secundario); font-size: .72rem; }
+.vc-timeline-item { border-left: 2px solid var(--borda-forte); padding: 0 0 12px 14px; margin-left: 4px; position: relative; font-size: .82rem; }
+.vc-timeline-item::before { content: ""; position: absolute; left: -5px; top: 2px; width: 8px; height: 8px; border-radius: 50%; background: var(--azul); }
+.vc-timeline-hora { font-family: var(--fonte-mono); font-weight: 700; }
+.vc-historico-linha { display:flex; justify-content: space-between; font-size: .8rem; padding: 6px 0; border-bottom: 1px solid var(--borda); }
+
+.vc-dist-item { display:flex; justify-content: space-between; font-size: .82rem; padding: 4px 0; }
+.vc-dist-barra { height: 6px; background: var(--fundo); border-radius: 4px; overflow: hidden; margin-top: 3px; }
+.vc-dist-barra > div { height: 100%; background: var(--azul); }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+
+<div class="vc-cards" id="vc-cards"></div>
+
+<div class="vc-alertas" id="vc-alertas"></div>
+
+<div class="vc-filtros">
+  <div class="vc-chip ativo" data-status="no_campus" onclick="filtrarStatus('no_campus')">No campus</div>
+  <div class="vc-chip" data-status="saiu" onclick="filtrarStatus('saiu')">Saíram</div>
+  <div class="vc-chip" data-status="todas" onclick="filtrarStatus('todas')">Todos</div>
+  <select id="vc-destino" onchange="carregarLista()">
+    <option value="">Todos os destinos</option>
+    {% for d in destinos %}
+    <option value="{{ d }}">{{ d }}</option>
+    {% endfor %}
+  </select>
+  <input type="text" id="vc-busca" placeholder="Pesquisar visitante..." oninput="onBusca()">
+  <button class="btn btn-secundario btn-sm" onclick="carregarTudo()"><svg class='icon'><use href='#i-refresh'></use></svg> Atualizar</button>
+</div>
+
+<div class="vc-lista" id="vc-lista"><div class="estado-vazio">Carregando…</div></div>
+
+<div class="secao-titulo" style="font-size:1rem; margin-top:28px;">O que os dados mostram — hoje</div>
+<div id="vc-distribuicao" style="max-width:420px;"></div>
+
+<div class="vc-drawer-fundo" id="vc-drawer-fundo" onclick="if(event.target===this) fecharDrawer()">
+  <div class="vc-drawer">
+    <svg class="icon vc-drawer-fechar" onclick="fecharDrawer()"><use href="#i-close"></use></svg>
+    <div id="vc-drawer-conteudo">Carregando…</div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let statusAtual = "no_campus";
+let buscaTimer = null;
+
+document.addEventListener("DOMContentLoaded", () => {
+  carregarTudo();
+  setInterval(carregarTudo, 20000);
+});
+
+function carregarTudo() {
+  carregarIndicadores();
+  carregarLista();
+}
+
+function filtrarStatus(s) {
+  statusAtual = s;
+  document.querySelectorAll(".vc-chip").forEach(c => c.classList.toggle("ativo", c.dataset.status === s));
+  carregarLista();
+}
+
+function onBusca() {
+  clearTimeout(buscaTimer);
+  buscaTimer = setTimeout(carregarLista, 250);
+}
+
+async function carregarIndicadores() {
+  const r = await api("get", "/visitantes/api/indicadores");
+  if (!r.ok) return;
+  const d = r.dados;
+
+  document.getElementById("vc-cards").innerHTML = `
+    <div class="vc-card"><div class="num">${d.no_campus}</div><div class="lbl">Agora no campus</div></div>
+    <div class="vc-card"><div class="num">${d.entradas_hoje}</div><div class="lbl">Entraram hoje</div></div>
+    <div class="vc-card"><div class="num">${d.saidas_hoje}</div><div class="lbl">Saíram hoje</div></div>
+    <div class="vc-card"><div class="num">${d.sem_saida}</div><div class="lbl">Ainda sem saída</div></div>
+    <div class="vc-card"><div class="num">${d.tempo_medio_label}</div><div class="lbl">Permanência média</div></div>`;
+
+  const alertasBox = document.getElementById("vc-alertas");
+  alertasBox.innerHTML = d.alertas.length ? `
+    <div class="secao-titulo" style="font-size:.9rem;">Atenção</div>
+    ${d.alertas.map(a => `
+      <div class="vc-alerta-item">
+        <span><svg class='icon' style="width:14px;height:14px;"><use href='#i-warning'></use></svg>
+          <b>${a.visitante_nome}</b> há ${a.permanencia_label} no campus · destino: ${a.destino}</span>
+        <button class="btn btn-secundario btn-sm" onclick="abrirDetalhe(${a.id})">Ver visita</button>
+      </div>`).join("")}` : "";
+
+  const distBox = document.getElementById("vc-distribuicao");
+  distBox.innerHTML = d.distribuicao_motivo.length ? d.distribuicao_motivo.map(m => `
+    <div class="vc-dist-item"><span>${m.motivo}</span><span>${m.percentual}%</span></div>
+    <div class="vc-dist-barra"><div style="width:${m.percentual}%;"></div></div>`).join("")
+    : `<div class="estado-vazio">Sem visitas registradas hoje ainda.</div>`;
+}
+
+async function carregarLista() {
+  const destino = document.getElementById("vc-destino").value;
+  const busca = document.getElementById("vc-busca").value.trim();
+  const params = new URLSearchParams({ status: statusAtual });
+  if (destino) params.set("destino", destino);
+  if (busca) params.set("q", busca);
+
+  const r = await api("get", `/visitantes/api/visitas?${params.toString()}`);
+  const caixa = document.getElementById("vc-lista");
+  if (!r.ok) { caixa.innerHTML = `<div class="estado-vazio">Erro ao carregar.</div>`; return; }
+  if (r.dados.length === 0) {
+    caixa.innerHTML = `<div class="estado-vazio"><svg class='icon'><use href='#i-inbox'></use></svg> Nenhum visitante encontrado.</div>`;
+    return;
+  }
+
+  caixa.innerHTML = r.dados.map(v => `
+    <div class="vc-item ${v.status === 'finalizada' ? 'finalizada' : ''}" onclick="abrirDetalhe(${v.id})">
+      <div class="vc-item-hora">${v.entrada_em.slice(11,16)}</div>
+      <div class="vc-item-info">
+        <div class="vc-item-nome">${v.visitante_nome}</div>
+        <div class="vc-item-meta">${v.destino} · ${v.motivo_label} · registrado por ${v.registrado_por}</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="vc-badge-status ${v.status === 'no_campus' ? 'campus' : ''}">${v.status === 'no_campus' ? '🟢 No campus' : '⚪ Finalizada'}</div>
+        <div class="vc-item-meta">${v.permanencia_label}</div>
+      </div>
+    </div>`).join("");
+}
+
+async function abrirDetalhe(id) {
+  const fundo = document.getElementById("vc-drawer-fundo");
+  fundo.classList.add("aberto");
+  document.getElementById("vc-drawer-conteudo").innerHTML = "Carregando…";
+
+  const [rDetalhe, rEventos] = await Promise.all([
+    api("get", `/visitantes/api/visitas/${id}`),
+    api("get", `/visitantes/api/visitas/${id}/historico-eventos`),
+  ]);
+  if (!rDetalhe.ok) { document.getElementById("vc-drawer-conteudo").innerHTML = "Erro ao carregar detalhes."; return; }
+
+  const v = rDetalhe.dados.visita;
+  const historico = rDetalhe.dados.historico.filter(h => h.id !== v.id);
+  const eventos = rEventos.ok ? rEventos.dados : [];
+
+  document.getElementById("vc-drawer-conteudo").innerHTML = `
+    <h3>${v.visitante_nome}</h3>
+    <div class="status-linha">${v.status === 'no_campus' ? '🟢 Atualmente no campus' : '⚪ Visita finalizada'}${rDetalhe.dados.total_visitas > 1 ? ' · <span class="vc-badge-recorrente">🔵 Visitante recorrente</span>' : ''}</div>
+
+    <div class="vc-detalhe-grid">
+      <div><span>Entrada</span>${v.entrada_em.slice(11,16)}</div>
+      <div><span>Permanência</span>${v.permanencia_label}</div>
+      <div><span>Destino</span>${v.destino}</div>
+      <div><span>Motivo</span>${v.motivo_label}${v.motivo_detalhe ? " — " + v.motivo_detalhe : ""}</div>
+      <div><span>Registrado por</span>${v.registrado_por}</div>
+      <div><span>Documento</span>${v.visitante_documento || "—"}</div>
+    </div>
+    ${v.observacao ? `<div class="secao"><div class="secao-label">Observação</div><div style="font-size:.84rem;">${v.observacao}</div></div>` : ""}
+
+    <div class="secao">
+      <div class="secao-label">Linha do tempo</div>
+      ${eventos.map(e => `
+        <div class="vc-timeline-item">
+          <span class="vc-timeline-hora">${e.criado_em.slice(11,16)}</span> — ${LABEL_EVENTO[e.tipo] || e.tipo} (${e.autor})
+          ${e.detalhe ? `<div class="vc-item-meta">${e.detalhe}</div>` : ""}
+        </div>`).join("")}
+    </div>
+
+    ${historico.length ? `
+    <div class="secao">
+      <div class="secao-label">Histórico de visitas (${rDetalhe.dados.total_visitas} no total)</div>
+      ${historico.slice(0,10).map(h => `
+        <div class="vc-historico-linha">
+          <span>${formatarData(h.entrada_em)} · ${h.destino}</span>
+          <span>${h.status === 'no_campus' ? 'Em andamento' : h.permanencia_label}</span>
+        </div>`).join("")}
+    </div>` : ""}
+  `;
+}
+
+const LABEL_EVENTO = {
+  entrada: "Entrada registrada",
+  saida: "Saída registrada",
+  correcao: "Registro corrigido",
+};
+
+function fecharDrawer() {
+  document.getElementById("vc-drawer-fundo").classList.remove("aberto");
+}
+</script>
+{% endblock %}
