@@ -1,0 +1,408 @@
+{% extends "base.html" %}
+{% block titulo %}Controle de Chaves{% endblock %}
+{% block topbar_titulo %}Controle de Chaves{% endblock %}
+
+{% block estilos %}
+<style>
+.busca-wrap { position:relative; flex:1; min-width:180px; }
+.busca-wrap input { width:100%; padding:9px 14px 9px 34px; }
+.busca-wrap-icone { position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--texto-mudo); }
+
+.grade-chaves { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); gap: 12px; }
+
+.chave-card {
+  background: var(--card); border: 1px solid var(--borda); border-left: 3px solid var(--verde);
+  border-radius: var(--raio-lg); padding: 14px; cursor: pointer; transition: box-shadow var(--transicao), transform var(--transicao);
+  display:flex; flex-direction:column; gap:8px; text-align:left;
+}
+.chave-card:hover { box-shadow: var(--sombra-md); transform: translateY(-1px); }
+.chave-card.em-uso { border-left-color: var(--amarelo); }
+.chave-card.atrasada { border-left-color: var(--vermelho); }
+
+.chave-card-nome { font-weight:600; font-size:.92rem; display:flex; align-items:center; gap:8px; }
+.chave-card-local { font-size:.78rem; color:var(--texto-mudo); margin-left:26px; display:flex; align-items:center; gap:4px; }
+.chave-card-status { font-size:.78rem; font-weight:600; display:flex; align-items:center; gap:6px; margin-top:2px; }
+.chave-card-status.disponivel { color: var(--verde); }
+.chave-card-status.em-uso     { color: var(--amarelo); }
+.chave-card-status.atrasada   { color: var(--vermelho); }
+.chave-card-detalhe { font-size:.76rem; color:var(--texto-secundario); }
+
+.card-add {
+  border: 1.5px dashed var(--borda-forte); display: flex; align-items: center; justify-content: center;
+  min-height: 92px; cursor: pointer; color: var(--texto-secundario); font-weight: 600; font-size: .85rem;
+  gap: 8px; border-radius: var(--raio-lg); background: transparent;
+}
+.card-add:hover { border-color: var(--texto-secundario); background: var(--sidebar-hover); }
+
+.modal-local { font-size:.82rem; color:var(--texto-mudo); display:flex; align-items:center; gap:4px; margin-top:2px; }
+.modal-status-box { background: var(--bg-fundo2); border-radius:var(--raio); padding:12px 14px; margin:14px 0; font-size:.86rem; line-height:1.6; }
+.modal-form-acoes { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-top:6px; }
+
+.historico-titulo { font-size:.72rem; font-weight:600; color:var(--texto-mudo); text-transform:uppercase; letter-spacing:.05em; margin:16px 0 8px; }
+.historico-item { border-left:2px solid var(--borda-forte); padding:6px 12px; margin-bottom:5px; font-size:.8rem; background: var(--bg-fundo2); border-radius:var(--raio); }
+.historico-item.devolvido { border-left-color: var(--verde); }
+.historico-item.pendente  { border-left-color: var(--amarelo); }
+
+/* X fixo no modal de chave — o corpo tem scroll próprio (histórico pode
+   ficar longo), então o botão "Fechar" que vive lá dentro pode sair de
+   vista ao rolar. Este X fica fora da área que rola, sempre acessível. */
+#dialogo-chave { position: relative; }
+.modal-fechar-x {
+  position: absolute; top: 14px; right: 14px; z-index: 2;
+  width: 30px; height: 30px; border-radius: 50%; border: none;
+  background: var(--bg-fundo2); color: var(--texto-secundario);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.modal-fechar-x:hover { background: var(--card); color: var(--texto); }
+.modal-fechar-x svg { width: 16px; height: 16px; }
+</style>
+{% endblock %}
+
+{% block conteudo %}
+
+<div class="alerta alerta-info">
+  <svg class='icon'><use href='#i-info'></use></svg>
+  <span>Só a secretaria registra a entrega e a devolução de chaves — ela seleciona o professor que está retirando cada uma.</span>
+</div>
+
+<div class="grade-stats mb-24">
+  <div class="stat-box">
+    <div class="stat-box-numero" id="stat-disponiveis">—</div>
+    <div class="stat-box-label">Disponíveis</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-box-numero" id="stat-em-uso">—</div>
+    <div class="stat-box-label">Em uso</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-box-numero" id="stat-atrasadas">—</div>
+    <div class="stat-box-label">Atrasadas</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-box-numero" id="stat-total">—</div>
+    <div class="stat-box-label">Total cadastradas</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="filtros-linha flex gap-8 mb-16" style="flex-wrap:wrap;">
+    <div class="busca-wrap">
+      <svg class="icon busca-wrap-icone"><use href="#i-search"></use></svg>
+      <input type="text" id="busca-chave" placeholder="Buscar por nome ou local…" oninput="debounceLista()">
+    </div>
+    <button class="filtro-chip ativo" data-status="" onclick="filtrarStatus(this,'')">Todas</button>
+    <button class="filtro-chip" data-status="disponivel" onclick="filtrarStatus(this,'disponivel')">Disponíveis</button>
+    <button class="filtro-chip" data-status="em_uso" onclick="filtrarStatus(this,'em_uso')">Em uso</button>
+    <button class="filtro-chip" data-status="atrasada" onclick="filtrarStatus(this,'atrasada')">Atrasadas</button>
+  </div>
+
+  <div class="grade-chaves" id="grade-chaves">
+    <div class="estado-carregando" style="grid-column:1/-1;"><span class="spinner"></span> Carregando…</div>
+  </div>
+</div>
+
+
+<dialog class="modal modal-formulario" id="dialogo-cadastro">
+  <div class="modal-corpo">
+    <div class="modal-titulo">Cadastrar chave</div>
+    <div class="campo mt-16">
+      <label for="nc-nome">Nome da chave</label>
+      <input type="text" id="nc-nome" placeholder="Ex: Laboratório de Redes 1">
+    </div>
+    <div class="campo">
+      <label for="nc-local">Local (opcional)</label>
+      <input type="text" id="nc-local" placeholder="Ex: Bloco B, 2º andar">
+    </div>
+  </div>
+  <div class="modal-acoes">
+    <button class="btn btn-secundario" data-fechar-dialogo>Cancelar</button>
+    <button class="btn btn-primario" onclick="cadastrarChave()">Cadastrar</button>
+  </div>
+</dialog>
+
+
+<dialog class="modal modal-formulario" id="dialogo-chave">
+  <button type="button" class="modal-fechar-x" aria-label="Fechar" onclick="document.getElementById('dialogo-chave').close()">
+    <svg class='icon'><use href='#i-close'></use></svg>
+  </button>
+  <div class="modal-corpo">
+    <div class="modal-titulo">
+      <svg class='icon'><use href='#i-key'></use></svg>
+      <span id="mc-titulo">—</span>
+    </div>
+    <div class="modal-local" id="mc-local"></div>
+
+    <div class="modal-status-box" id="mc-status-box"></div>
+
+    {% if not professores %}
+    <div class="alerta alerta-aviso">
+      <svg class='icon'><use href='#i-warning'></use></svg>
+      <span>Não há nenhum professor cadastrado no sistema ainda. Cadastre em Administração <svg class='icon'><use href='#i-arrow-right'></use></svg> Usuários antes de entregar uma chave.</span>
+    </div>
+    {% endif %}
+
+    <div class="modal-form-acoes" id="mc-acoes"></div>
+
+    <div class="historico-titulo">Últimas movimentações</div>
+    <div id="mc-historico"></div>
+  </div>
+</dialog>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PROFESSORES = {{ professores | tojson }};
+
+let timerLista = null;
+let statusAtivo = "";
+let chaveAbertaId = null;
+
+document.addEventListener("DOMContentLoaded", () => {
+  carregarStatus();
+  carregarLista();
+});
+
+document.querySelectorAll("[data-fechar-dialogo]").forEach(btn => {
+  btn.addEventListener("click", () => btn.closest("dialog").close());
+});
+
+async function carregarStatus() {
+  const r = await api("get", "/chaves/api/status");
+  if (!r.ok) return;
+  document.getElementById("stat-disponiveis").textContent = r.dados.disponiveis;
+  document.getElementById("stat-em-uso").textContent      = r.dados.em_uso;
+  document.getElementById("stat-atrasadas").textContent   = r.dados.atrasadas;
+  document.getElementById("stat-total").textContent       = r.dados.total;
+}
+
+function debounceLista() { clearTimeout(timerLista); timerLista = setTimeout(carregarLista, 300); }
+
+function filtrarStatus(btn, status) {
+  document.querySelectorAll(".filtro-chip").forEach(b => b.classList.remove("ativo"));
+  btn.classList.add("ativo");
+  statusAtivo = status;
+  carregarLista();
+}
+
+let ultimaLista = [];
+
+async function carregarLista() {
+  const busca = document.getElementById("busca-chave").value.trim();
+  const params = new URLSearchParams();
+  if (busca) params.set("busca", busca);
+  if (statusAtivo) params.set("status", statusAtivo);
+
+  const grade = document.getElementById("grade-chaves");
+  const r = await api("get", `/chaves/api/chaves?${params}`);
+
+  if (!r.ok) {
+    grade.innerHTML = `<div class="estado-erro" style="grid-column:1/-1;">
+      <div class="icone-caixa"><svg class='icon'><use href='#i-warning'></use></svg></div>
+      <div class="estado-erro-titulo">Não foi possível carregar as chaves</div>
+      <button class="btn btn-secundario" onclick="carregarLista()">Tentar de novo</button>
+    </div>`;
+    return;
+  }
+
+  ultimaLista = r.dados;
+  let html = r.dados.map(cardHtml).join("");
+
+  if (!busca && !statusAtivo) {
+    html += `<button type="button" class="card-add" onclick="document.getElementById('dialogo-cadastro').showModal()">
+      <svg class='icon'><use href='#i-plus'></use></svg> Cadastrar chave
+    </button>`;
+  }
+
+  if (r.dados.length === 0 && (busca || statusAtivo)) {
+    html = `<div class="estado-vazio" style="grid-column:1/-1;">
+      <div class="icone-caixa"><svg class='icon'><use href='#i-search'></use></svg></div>
+      <div class="estado-vazio-titulo">Nenhuma chave encontrada</div>
+      <p class="estado-vazio-texto">Tente outro termo de busca ou filtro.</p>
+    </div>` + html;
+  }
+
+  grade.innerHTML = html;
+}
+
+function cardHtml(c) {
+  let classeCard = "chave-card";
+  let statusHtml = `<div class="chave-card-status disponivel"><svg class='icon'><use href='#i-check-circle'></use></svg> Disponível</div>`;
+
+  if (c.em_uso) {
+    classeCard += c.movimento_atual.atrasada ? " atrasada" : " em-uso";
+    const iconeStatus = c.movimento_atual.atrasada ? "i-warning" : "i-wrench";
+    const rotulo = c.movimento_atual.atrasada ? "Atrasada" : "Em uso";
+    const classeStatus = c.movimento_atual.atrasada ? "atrasada" : "em-uso";
+    const prazoTxt = c.movimento_atual.atrasada
+      ? `deveria ter voltado às ${formatarHora(c.movimento_atual.devolucao_prevista)}`
+      : `devolver até ${formatarHora(c.movimento_atual.devolucao_prevista)}`;
+    statusHtml = `
+      <div class="chave-card-status ${classeStatus}"><svg class='icon'><use href='#${iconeStatus}'></use></svg> ${rotulo}</div>
+      <div class="chave-card-detalhe">com Prof(a). ${c.movimento_atual.professor_nome} · ${prazoTxt}</div>`;
+  }
+
+  return `
+    <button type="button" class="${classeCard}" onclick="abrirChave(${c.id})">
+      <div class="chave-card-nome"><svg class='icon'><use href='#i-key'></use></svg> ${c.nome}</div>
+      ${c.local ? `<div class="chave-card-local"><svg class='icon'><use href='#i-map-pin'></use></svg> ${c.local}</div>` : ''}
+      ${statusHtml}
+    </button>`;
+}
+
+function abrirChave(id) {
+  chaveAbertaId = id;
+  const chave = ultimaLista.find(c => c.id === id);
+  if (!chave) return;
+
+  document.getElementById("mc-titulo").textContent = chave.nome;
+  document.getElementById("mc-local").innerHTML = chave.local
+    ? `<svg class='icon'><use href='#i-map-pin'></use></svg> ${chave.local}` : "";
+
+  const statusBox = document.getElementById("mc-status-box");
+  const acoes = document.getElementById("mc-acoes");
+
+  if (chave.em_uso) {
+    const atrasoTxt = chave.movimento_atual.atrasada
+      ? `<div style="color:var(--vermelho);font-weight:600;margin-top:4px;">Atrasada — deveria ter sido devolvida às ${formatarDataHora(chave.movimento_atual.devolucao_prevista)}.</div>` : "";
+    statusBox.innerHTML = `
+      <strong>Em uso</strong> desde ${formatarDataHora(chave.movimento_atual.retirado_em)}<br>
+      Devolver até: <strong>${formatarDataHora(chave.movimento_atual.devolucao_prevista)}</strong><br>
+      Com: <strong>Prof(a). ${chave.movimento_atual.professor_nome}</strong><br>
+      Entregue por: ${chave.movimento_atual.registrado_por}
+      ${chave.movimento_atual.observacao ? `<br>Obs: ${chave.movimento_atual.observacao}` : ''}
+      ${atrasoTxt}`;
+    acoes.innerHTML = `<button class="btn btn-sucesso" id="btn-devolver" onclick="devolverChave()">Registrar devolução</button>
+      <button class="btn btn-secundario" onclick="document.getElementById('dialogo-chave').close()">Fechar</button>`;
+  } else {
+    statusBox.innerHTML = `<strong>Disponível</strong> — pronta para entrega.`;
+
+    if (PROFESSORES.length === 0) {
+      acoes.innerHTML = `<button class="btn btn-secundario" onclick="document.getElementById('dialogo-chave').close()">Fechar</button>`;
+    } else {
+      acoes.innerHTML = `
+        <div class="campo" style="flex:1;min-width:180px;margin-bottom:0;">
+          <label>Professor</label>
+          <select id="mc-professor">
+            <option value="">Selecione…</option>
+            ${PROFESSORES.map(p => `<option value="${p.id}">${p.nome}</option>`).join("")}
+          </select>
+        </div>
+        <div class="campo" style="flex:1;min-width:180px;margin-bottom:0;">
+          <label>Devolver até</label>
+          <input type="datetime-local" id="mc-devolucao-prevista" value="${sugerirDevolucaoPrevista()}">
+        </div>
+        <div class="campo" style="flex:1;min-width:180px;margin-bottom:0;">
+          <label>Observação (opcional)</label>
+          <input type="text" id="mc-observacao" placeholder="Ex: aula das 14h">
+        </div>
+        <button class="btn btn-primario" id="btn-entregar" onclick="entregarChave()">Registrar entrega</button>`;
+    }
+    acoes.innerHTML += `<button class="btn btn-secundario" onclick="desativarChave(${chave.id})">Desativar chave</button>`;
+  }
+
+  carregarHistorico(id);
+  document.getElementById("dialogo-chave").showModal();
+}
+
+async function carregarHistorico(id) {
+  const r = await api("get", `/chaves/api/chaves/${id}/historico`);
+  const el = document.getElementById("mc-historico");
+  if (!r.ok || r.dados.length === 0) {
+    el.innerHTML = `<div class="text-mudo text-sm">Nenhuma movimentação registrada ainda.</div>`;
+    return;
+  }
+  el.innerHTML = r.dados.map(m => {
+    const atrasouDevolucao = !m.devolvido_em && m.devolucao_prevista && new Date(m.devolucao_prevista) < new Date();
+    const status = m.devolvido_em
+      ? `devolvido ${formatarDataHora(m.devolvido_em)} (confirmado por ${m.devolvido_por})`
+      : atrasouDevolucao
+        ? `<strong style="color:var(--vermelho);">atrasada — prevista para ${formatarDataHora(m.devolucao_prevista)}</strong>`
+        : `<strong style="color:var(--amarelo);">ainda não devolvida — prevista para ${formatarDataHora(m.devolucao_prevista)}</strong>`;
+    return `
+      <div class="historico-item ${m.devolvido_em ? 'devolvido' : 'pendente'}">
+        <strong>Prof(a). ${m.professor_nome}</strong> retirou em ${formatarDataHora(m.retirado_em)}
+        <span class="text-mudo">(entregue por ${m.registrado_por})</span><br>
+        <span class="text-mudo">${status}</span>
+      </div>`;
+  }).join("");
+}
+
+function sugerirDevolucaoPrevista() {
+  const daqui2h = new Date(Date.now() + 2 * 60 * 60 * 1000);
+  daqui2h.setSeconds(0, 0);
+  const offset = daqui2h.getTimezoneOffset();
+  const local = new Date(daqui2h.getTime() - offset * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+async function entregarChave() {
+  const professorId = document.getElementById("mc-professor").value;
+  const devolucaoPrevista = document.getElementById("mc-devolucao-prevista").value;
+  const observacao = document.getElementById("mc-observacao")?.value.trim() || "";
+
+  if (!professorId) { mostrarAlerta("Selecione o professor que está retirando a chave.", "aviso"); return; }
+  if (!devolucaoPrevista) { mostrarAlerta("Informe até quando a chave deve ser devolvida.", "aviso"); return; }
+
+  mostrarSpinner("btn-entregar");
+  const r = await api("post", `/chaves/api/chaves/${chaveAbertaId}/entregar`, {
+    professor_id: parseInt(professorId), devolucao_prevista: devolucaoPrevista, observacao
+  });
+  ocultarSpinner("btn-entregar");
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao registrar entrega.", "erro"); return; }
+  mostrarAlerta("Entrega registrada.", "sucesso");
+  document.getElementById("dialogo-chave").close();
+  carregarLista(); carregarStatus();
+}
+
+async function devolverChave() {
+  mostrarSpinner("btn-devolver");
+  const r = await api("post", `/chaves/api/chaves/${chaveAbertaId}/devolver`);
+  ocultarSpinner("btn-devolver");
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao devolver chave.", "erro"); return; }
+  mostrarAlerta("Devolução registrada.", "sucesso");
+  document.getElementById("dialogo-chave").close();
+  carregarLista(); carregarStatus();
+}
+
+async function desativarChave(id) {
+  const ok = await confirmarAcao({
+    titulo: "Desativar esta chave?",
+    texto: "Ela deixa de aparecer na lista, mas o histórico é mantido.",
+    rotuloConfirmar: "Desativar",
+    perigoso: true,
+  });
+  if (!ok) return;
+  const r = await api("delete", `/chaves/api/chaves/${id}`);
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao desativar.", "erro"); return; }
+  mostrarAlerta("Chave desativada.", "sucesso");
+  document.getElementById("dialogo-chave").close();
+  carregarLista(); carregarStatus();
+}
+
+async function cadastrarChave() {
+  const nome = document.getElementById("nc-nome").value.trim();
+  const local = document.getElementById("nc-local").value.trim();
+  if (!nome) { mostrarAlerta("Informe o nome da chave.", "aviso"); return; }
+
+  const r = await api("post", "/chaves/api/chaves", { nome, local });
+  if (!r.ok) { mostrarAlerta(r.dados?.erro || "Erro ao cadastrar.", "erro"); return; }
+
+  mostrarAlerta(`"${nome}" cadastrada.`, "sucesso");
+  document.getElementById("nc-nome").value = "";
+  document.getElementById("nc-local").value = "";
+  document.getElementById("dialogo-cadastro").close();
+  carregarLista(); carregarStatus();
+}
+
+function formatarHora(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+function formatarDataHora(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("pt-BR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+}
+</script>
+{% endblock %}
